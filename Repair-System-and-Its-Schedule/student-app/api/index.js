@@ -58,6 +58,76 @@ function showErrorToast(message) {
 }
 
 /**
+ * 401 跳转登录防重复标记
+ */
+let _isRedirectingToLogin = false
+
+function handle401() {
+    if (_isRedirectingToLogin) return
+    _isRedirectingToLogin = true
+    uni.removeStorageSync('student_token')
+    uni.removeStorageSync('student_id')
+    uni.removeStorageSync('student_name')
+    showErrorToast('登录已过期，请重新登录')
+    setTimeout(() => {
+        uni.reLaunch({
+            url: '/pages/login/login',
+            complete: () => { _isRedirectingToLogin = false }
+        })
+    }, 1500)
+}
+
+/**
+ * 通用请求核心逻辑
+ */
+function doRequest(url, method, data, resolve, reject) {
+    const isGet = method === 'GET'
+    let fullUrl = BASE_URL + url
+
+    if (isGet && data && Object.keys(data).length > 0) {
+        const qs = Object.keys(data)
+            .filter(key => data[key] !== undefined && data[key] !== '')
+            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
+            .join('&')
+        if (qs) fullUrl += '?' + qs
+    }
+
+    uni.request({
+        url: fullUrl,
+        method: method,
+        data: isGet ? undefined : data,
+        header: getAuthHeader(),
+        success: (res) => {
+            if (res.statusCode === 200) {
+                resolve(res.data)
+            } else if (res.statusCode === 401) {
+                handle401()
+                reject(new Error('登录已过期，请重新登录'))
+            } else {
+                const errMsg = getErrorMessage(res.statusCode, res.data)
+                console.error('API错误:', res.statusCode, res.data)
+                showErrorToast(errMsg)
+                reject(new Error(errMsg))
+            }
+        },
+        fail: (err) => {
+            console.error('请求失败:', err)
+            const errMsg = err?.errMsg || ''
+            let msg
+            if (errMsg.includes('timeout')) {
+                msg = '请求超时，请检查网络'
+            } else if (errMsg.includes('abort')) {
+                msg = '请求已取消'
+            } else {
+                msg = '网络连接失败，请检查网络'
+            }
+            showErrorToast(msg)
+            reject(new Error(msg))
+        }
+    })
+}
+
+/**
  * 通用 GET 请求
  * @param {string} url - API 路径
  * @param {Object} params - 查询参数
@@ -65,48 +135,7 @@ function showErrorToast(message) {
  */
 export function request(url, params = {}) {
     return new Promise((resolve, reject) => {
-        // 构建查询参数
-        let queryString = Object.keys(params)
-            .filter(key => params[key] !== undefined && params[key] !== '')
-            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-            .join('&')
-
-        const fullUrl = queryString ? `${BASE_URL}${url}?${queryString}` : `${BASE_URL}${url}`
-
-        uni.request({
-            url: fullUrl,
-            method: 'GET',
-            header: getAuthHeader(),
-            success: (res) => {
-                if (res.statusCode === 200) {
-                    resolve(res.data)
-                } else if (res.statusCode === 401) {
-                    // token失效，跳转登录页
-                    uni.removeStorageSync('student_token')
-                    uni.removeStorageSync('student_id')
-                    uni.removeStorageSync('student_name')
-                    showErrorToast('登录已过期，请重新登录')
-                    setTimeout(() => {
-                        uni.reLaunch({ url: '/pages/login/login' })
-                    }, 1500)
-                    reject(new Error('登录已过期，请重新登录'))
-                } else {
-                    const errMsg = getErrorMessage(res.statusCode, res.data)
-                    console.error('API错误:', res.statusCode, res.data)
-                    showErrorToast(errMsg)
-                    reject(new Error(errMsg))
-                }
-            },
-            fail: (err) => {
-                console.error('请求失败:', err)
-                const isTimeout = err?.errMsg?.includes('timeout')
-                const isNetwork = err?.errMsg?.includes('network') || err?.errMsg?.includes('fail')
-                const errMsg = isTimeout ? '请求超时，请检查网络' :
-                              isNetwork ? '网络连接失败，请检查网络' : '请求失败，请稍后重试'
-                showErrorToast(errMsg)
-                reject(new Error(errMsg))
-            }
-        })
+        doRequest(url, 'GET', params, resolve, reject)
     })
 }
 
@@ -118,41 +147,7 @@ export function request(url, params = {}) {
  */
 export function post(url, data = {}) {
     return new Promise((resolve, reject) => {
-        uni.request({
-            url: BASE_URL + url,
-            method: 'POST',
-            data: data,
-            header: getAuthHeader(),
-            success: (res) => {
-                if (res.statusCode === 200) {
-                    resolve(res.data)
-                } else if (res.statusCode === 401) {
-                    // token失效，跳转登录页
-                    uni.removeStorageSync('student_token')
-                    uni.removeStorageSync('student_id')
-                    uni.removeStorageSync('student_name')
-                    showErrorToast('登录已过期，请重新登录')
-                    setTimeout(() => {
-                        uni.reLaunch({ url: '/pages/login/login' })
-                    }, 1500)
-                    reject(new Error('登录已过期，请重新登录'))
-                } else {
-                    const errMsg = getErrorMessage(res.statusCode, res.data)
-                    console.error('API错误:', res.statusCode, res.data)
-                    showErrorToast(errMsg)
-                    reject(new Error(errMsg))
-                }
-            },
-            fail: (err) => {
-                console.error('请求失败:', err)
-                const isTimeout = err?.errMsg?.includes('timeout')
-                const isNetwork = err?.errMsg?.includes('network') || err?.errMsg?.includes('fail')
-                const errMsg = isTimeout ? '请求超时，请检查网络' :
-                              isNetwork ? '网络连接失败，请检查网络' : '请求失败，请稍后重试'
-                showErrorToast(errMsg)
-                reject(new Error(errMsg))
-            }
-        })
+        doRequest(url, 'POST', data, resolve, reject)
     })
 }
 

@@ -48,8 +48,8 @@ def verify_student_token(token: str) -> dict:
         payload_str = base64.urlsafe_b64decode(padded).decode('utf-8')
         payload = json.loads(payload_str)
 
-        # 检查过期时间
-        if payload.get('exp', 0) < time.time():
+        # 检查过期时间（60秒容差，兼容客户端/服务端时钟偏差）
+        if payload.get('exp', 0) < time.time() - 60:
             return {'valid': False, 'error': 'token已过期'}
 
         # 验证签名
@@ -110,7 +110,7 @@ def api_student_login():
             return jsonify({'status': 'error', 'message': result['error']}), 401
 
         # 生成安全 token（HMAC签名 + 过期时间）
-        expire_time = int(time.time()) + 86400  # 24小时过期
+        expire_time = int(time.time()) + 7 * 86400  # 7天过期
         payload = json.dumps({
             'sid': result['student_id'],
             'name': result['name'],
