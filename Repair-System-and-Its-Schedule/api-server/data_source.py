@@ -54,10 +54,12 @@ class ExcelDataSource(DataSource):
         return os.path.exists(self.excel_path)
 
     def load(self) -> pd.DataFrame:
-        """加载 Excel 数据，文件不存在或路径为空时返回空 DataFrame"""
-        if not self.excel_path or not os.path.exists(self.excel_path):
-            logger.info(f"Excel 文件不存在或未配置，返回空数据")
+        """加载 Excel 数据，文件不存在时抛出异常（让调用方知道加载失败）"""
+        if not self.excel_path:
+            logger.info("Excel 文件未配置，返回空数据")
             return pd.DataFrame(columns=self.REQUIRED_COLS)
+        if not os.path.exists(self.excel_path):
+            raise FileNotFoundError(f"Excel 文件不存在: {self.excel_path}")
 
         df = pd.read_excel(self.excel_path, sheet_name=self.sheet_name, header=0)
         df.columns = df.columns.str.strip()
