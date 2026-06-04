@@ -385,8 +385,19 @@ def admin_excel_upload():
         semester = request.form.get('semester', '')
 
         result = admin_config.upload_excel(file, year, semester)
-        cache.reload()
-        return jsonify({'status': 'ok', 'message': f'上传成功：{file.filename}'})
+
+        # Bug6 修复: reload() 现在返回实际加载结果
+        success = cache.reload()
+        if success:
+            return jsonify({'status': 'ok', 'message': f'上传成功：{file.filename}'})
+        else:
+            return jsonify({
+                'status': 'warning',
+                'message': f'文件已上传，但加载数据失败，请稍后点击"刷新数据"重试',
+                'data': result
+            })
+    except ValueError as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -402,8 +413,14 @@ def admin_excel_switch():
             return jsonify({'status': 'error', 'message': '缺少文件路径'}), 400
 
         admin_config.switch_excel(path)
-        cache.reload()
-        return jsonify({'status': 'ok', 'message': '已切换文件'})
+        success = cache.reload()
+        if success:
+            return jsonify({'status': 'ok', 'message': '已切换文件'})
+        else:
+            return jsonify({
+                'status': 'warning',
+                'message': '文件已切换，但加载数据失败，请稍后点击"刷新数据"重试'
+            })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

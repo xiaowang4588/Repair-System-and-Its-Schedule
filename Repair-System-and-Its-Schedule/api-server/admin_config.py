@@ -7,10 +7,18 @@ import os
 import json
 import hashlib
 import secrets
+import threading
+import tempfile
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+
+# Bug2 修复: 配置文件读写锁，防止并发读写导致配置损坏
+_config_lock = threading.Lock()
+
+# 内存缓存配置，避免每次读磁盘
+_cached_config = None
 
 # 默认密码从环境变量读取，如果未设置则生成随机密码
 DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', secrets.token_urlsafe(12))
@@ -50,24 +58,68 @@ def _ensure_dirs():
 
 
 def load_config() -> dict:
-    """加载配置文件，不存在则创建默认配置"""
+    """
+    加载配置文件，不存在则创建默认配置。
+    Bug2 修复: 加读锁，并发安全。
+    Bug8 修复: 读取失败时用内存缓存兜底，不覆盖配置文件。
+    """
+    global _cached_config
     _ensure_dirs()
-    if os.path.exists(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
-    # 创建默认配置
-    save_config(DEFAULT_CONFIG)
-    return DEFAULT_CONFIG.copy()
+
+    with _config_lock:
+        if os.path.exists(CONFIG_PATH):
+            for attempt in range(3):
+                try:
+                    with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                        cfg = json.load(f)
+                    _cached_config = cfg  # 更新内存缓存
+                    return cfg
+                except (json.JSONDecodeError, IOError, OSError):
+                    if attempt < 2:
+                        import time
+                        time.sleep(0.05)  # 短暂等待后重试
+                    continue
+
+        # 读取失败，用内存缓存兜底（Bug8: 不覆盖配置文件）
+        if _cached_config is not None:
+            return _cached_config.copy()
+
+        # 真正的首次启动，创建默认配置
+        _write_config_file(DEFAULT_CONFIG)
+        _cached_config = DEFAULT_CONFIG.copy()
+        return DEFAULT_CONFIG.copy()
 
 
 def save_config(config: dict):
-    """保存配置到文件"""
+    """
+    保存配置到文件。
+    Bug2 修复: 加写锁 + 原子写入（先写临时文件再 rename），防止并发写入损坏。
+    """
+    global _cached_config
     _ensure_dirs()
-    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=4)
+    with _config_lock:
+        _write_config_file(config)
+        _cached_config = config.copy()
+
+
+def _write_config_file(config: dict):
+    """原子写入配置文件：先写临时文件，再 rename，避免写入中途被读到半截"""
+    dir_name = os.path.dirname(CONFIG_PATH)
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=4)
+        # Windows: 目标文件存在时需要先删除才能 rename
+        if os.path.exists(CONFIG_PATH):
+            os.remove(CONFIG_PATH)
+        os.rename(tmp_path, CONFIG_PATH)
+    except Exception:
+        # 清理临时文件
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def verify_admin(username: str, password: str) -> bool:
@@ -158,9 +210,19 @@ def get_excel_files() -> list:
 
 def upload_excel(file, year: str = '', semester: str = '') -> dict:
     """上传 Excel 文件"""
+    import time as _time
+
     _ensure_dirs()
     excel_dir = os.path.join(UPLOADS_DIR, "excel")
     os.makedirs(excel_dir, exist_ok=True)
+
+    # Bug10 修复: 限制文件大小（最大 50MB）
+    MAX_SIZE = 50 * 1024 * 1024
+    file.seek(0, 2)  # 移到末尾
+    size = file.tell()
+    file.seek(0)  # 移回开头
+    if size > MAX_SIZE:
+        raise ValueError(f"文件大小 {size / 1024 / 1024:.1f}MB 超过限制 50MB")
 
     # 生成文件名
     filename = file.filename
@@ -172,6 +234,9 @@ def upload_excel(file, year: str = '', semester: str = '') -> dict:
 
     # 保存文件
     file.save(filepath)
+
+    # Bug4 修复: 等待 Windows 释放文件锁（防病毒扫描等）
+    _time.sleep(0.3)
 
     # 设置为当前文件
     rel_path = os.path.relpath(filepath, BASE_DIR)
