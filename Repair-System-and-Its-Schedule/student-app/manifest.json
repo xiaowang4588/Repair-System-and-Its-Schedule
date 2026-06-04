@@ -1,0 +1,38 @@
+{
+    "name" : "报修表填写助手",
+    "appid" : "__UNI__F18B42B",
+    "description" : "多媒体设备报修表填写助手",
+    "versionName" : "1.0.0",
+    "versionCode" : "100",
+    "transformPx" : false,
+    "h5" : {
+        "title" : "报修表填写助手",
+        "router" : {
+            "mode" : "hash"
+        },
+        "devServer" : {
+            "port" : 8080,
+            "proxy" : {
+                "/api" : {
+                    "target" : "http://106.55.154.144",
+                    "changeOrigin" : true
+                }
+            }
+        }
+    },
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false
+        },
+        "usingComponents" : true
+    },
+    "locale" : "auto",
+    "app-plus" : {
+        "distribute" : {
+            "ios" : {
+                "dSYMs" : false
+            }
+        }
+    }
+}

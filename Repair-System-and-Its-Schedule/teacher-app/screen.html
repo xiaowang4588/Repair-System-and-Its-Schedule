@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重庆移通学院綦江校区多媒体设备报修管理平台 - 数据大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: "DIN", "Roboto Mono", -apple-system, monospace;
+            background: #0a1628;
+            color: #E8ECF1;
+        }
+
+        .screen {
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: 56px 1fr;
+            overflow: hidden;
+        }
+
+        /* 顶部栏 */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            background: linear-gradient(180deg, rgba(0, 212, 255, 0.08) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .top-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .top-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00D4FF;
+            letter-spacing: 2px;
+        }
+
+        .top-source {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .top-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .top-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .top-week {
+            background: rgba(0, 212, 255, 0.15);
+            padding: 4px 14px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #00D4FF;
+            font-weight: 500;
+        }
+
+        .top-time {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: "DIN", monospace;
+        }
+
+        /* 时间范围按钮 */
+        .range-btns {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            border-radius: 8px;
+            padding: 3px;
+        }
+
+        .range-btn {
+            padding: 5px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.5);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .range-btn:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .range-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00D4FF;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 12px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        /* KPI 卡片 */
+        .kpi-row {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+
+        .kpi-card {
+            background: rgba(16, 42, 76, 0.5);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 10px;
+            padding: 14px 18px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .kpi-card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00D4FF, transparent);
+            opacity: 0.6;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+        }
+
+        .kpi-card:nth-child(1)::after {
+            background: #FF6B6B;
+        }
+
+        .kpi-card:nth-child(2)::after {
+            background: #FFA502;
+        }
+
+        .kpi-card:nth-child(3)::after {
+            background: #00D4FF;
+        }
+
+        .kpi-card:nth-child(4)::after {
+            background: #2ED573;
+        }
+
+        .kpi-card:nth-child(5)::after {
+            background: #A855F7;
+        }
+
+        .kpi-icon {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: "DIN", "Arial", sans-serif;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .kpi-card:nth-child(1) .kpi-value {
+            color: #FF6B6B;
+        }
+
+        .kpi-card:nth-child(2) .kpi-value {
+            color: #FFA502;
+        }
+
+        .kpi-card:nth-child(3) .kpi-value {
+            color: #00D4FF;
+        }
+
+        .kpi-card:nth-child(4) .kpi-value {
+            color: #2ED573;
+        }
+
+        .kpi-card:nth-child(5) .kpi-value {
+            color: #A855F7;
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            display: block;
+        }
+
+        /* 图表卡片 */
+        .panel {
+            background: rgba(16, 42, 76, 0.4);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4), transparent);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #E8ECF1;
+        }
+
+        .panel-hint {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .panel-body {
+            flex: 1;
+            padding: 6px;
+            position: relative;
+        }
+
+        .chart-box {
+            width: 100%;
+            height: 100%;
+            min-height: 180px;
+        }
+
+        /* 实时报修 - 自动滚动 */
+        .live-list {
+            overflow: hidden;
+            position: relative;
+        }
+
+        .live-list-inner {
+            animation: autoScroll 20s linear infinite;
+        }
+
+        .live-list:hover .live-list-inner {
+            animation-play-state: paused;
+        }
+
+        @keyframes autoScroll {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(-50%);
+            }
+        }
+
+        /* KPI 脉冲发光 */
+        .kpi-card:nth-child(1) {
+            animation: pulseRed 3s ease-in-out infinite;
+        }
+
+        .kpi-card:nth-child(2) {
+            animation: pulseOrange 3s ease-in-out infinite 0.6s;
+        }
+
+        .kpi-card:nth-child(3) {
+            animation: pulseCyan 3s ease-in-out infinite 1.2s;
+        }
+
+        .kpi-card:nth-child(4) {
+            animation: pulseGreen 3s ease-in-out infinite 1.8s;
+        }
+
+        .kpi-card:nth-child(5) {
+            animation: pulsePurple 3s ease-in-out infinite 2.4s;
+        }
+
+        @keyframes pulseRed {
+
+            0%,
+            100% {
+                box-shadow: none
+            }
+
+            50% {
+                box-shadow: 0 0 15px rgba(255, 107, 107, 0.2)
+            }
+        }
+
+        @keyframes pulseOrange {
+
+            0%,
+            100% {
+                box-shadow: none
+            }
+
+            50% {
+                box-shadow: 0 0 15px rgba(255, 165, 2, 0.2)
+            }
+        }
+
+        @keyframes pulseCyan {
+
+            0%,
+            100% {
+                box-shadow: none
+            }
+
+            50% {
+                box-shadow: 0 0 15px rgba(0, 212, 255, 0.2)
+            }
+        }
+
+        @keyframes pulseGreen {
+
+            0%,
+            100% {
+                box-shadow: none
+            }
+
+            50% {
+                box-shadow: 0 0 15px rgba(46, 213, 115, 0.2)
+            }
+        }
+
+        @keyframes pulsePurple {
+
+            0%,
+            100% {
+                box-shadow: none
+            }
+
+            50% {
+                box-shadow: 0 0 15px rgba(168, 85, 247, 0.2)
+            }
+        }
+
+        /* 背景动态网格 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridMove 8s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 60px 60px;
+            }
+        }
+
+        .screen {
+            position: relative;
+            z-index: 1;
+        }
+
+        .live-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .live-item:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .live-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .live-room {
+            font-size: 13px;
+            font-weight: 600;
+            color: #E8ECF1;
+        }
+
+        .live-info {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .live-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+
+        .tag-new {
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+        }
+
+        .tag-processing {
+            background: rgba(79, 124, 255, 0.15);
+            color: #4F7CFF;
+        }
+
+        .tag-done {
+            background: rgba(46, 213, 115, 0.15);
+            color: #2ED573;
+        }
+
+        /* 下钻详情面板 */
+        .drill-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #0a1628;
+            z-index: 100;
+            animation: drillSlideIn 0.3s ease;
+        }
+
+        .drill-overlay.show {
+            display: block;
+        }
+
+        @keyframes drillSlideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .drill-panel {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .drill-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 24px;
+            background: linear-gradient(180deg, rgba(0, 212, 255, 0.08) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            flex-shrink: 0;
+        }
+
+        .drill-back {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #00D4FF;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .drill-back:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .drill-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00D4FF;
+            letter-spacing: 1px;
+            margin: 0;
+            flex: 1;
+        }
+
+        .drill-range {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            background: rgba(0, 212, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+
+        .drill-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 212, 255, 0.3) transparent;
+        }
+
+        .drill-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .drill-content::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        .drill-kpi {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .drill-kpi-card {
+            background: rgba(16, 42, 76, 0.5);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 10px;
+            padding: 14px 18px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drill-kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00D4FF, transparent);
+            opacity: 0.5;
+        }
+
+        .drill-kpi-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .drill-kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00D4FF;
+            font-family: "DIN", sans-serif;
+            margin: 4px 0;
+        }
+
+        .drill-kpi-card:nth-child(2) .drill-kpi-value {
+            color: #FF6B6B;
+        }
+
+        .drill-kpi-card:nth-child(3) .drill-kpi-value {
+            color: #2ED573;
+        }
+
+        .drill-kpi-card:nth-child(4) .drill-kpi-value {
+            color: #A855F7;
+        }
+
+        .drill-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .drill-chart-card {
+            background: rgba(16, 42, 76, 0.4);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .drill-chart-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #E8ECF1;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+        }
+
+        .drill-chart-body {
+            height: 240px;
+            padding: 8px;
+        }
+
+        .drill-chart-full {
+            grid-column: 1 / -1;
+        }
+
+        .drill-link {
+            color: #00D4FF;
+            cursor: pointer;
+        }
+
+        .drill-link:hover {
+            text-decoration: underline;
+        }
+
+        .drill-list {
+            background: rgba(16, 42, 76, 0.4);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .drill-list-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #E8ECF1;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+        }
+
+        .drill-list-body {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .drill-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .drill-list-item:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .drill-list-left {
+            flex: 1;
+        }
+
+        .drill-list-main {
+            color: #E8ECF1;
+            font-weight: 500;
+        }
+
+        .drill-list-sub {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .drill-list-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .tag-new {
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+        }
+
+        .tag-processing {
+            background: rgba(79, 124, 255, 0.15);
+            color: #4F7CFF;
+        }
+
+        .tag-done {
+            background: rgba(46, 213, 115, 0.15);
+            color: #2ED573;
+        }
+
+        @media (max-width: 1200px) {
+            .drill-kpi {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .drill-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto auto auto;
+            }
+
+            .kpi-row {
+                grid-column: 1 / -1;
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                overflow-y: auto;
+            }
+
+            .kpi-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="screen">
+        <!-- 顶部栏 -->
+        <div class="top-bar">
+            <div class="top-left">
+                <span class="top-title">重庆移通学院綦江校区多媒体设备报修管理平台</span>
+                <span class="top-source" id="topSource">数据来源：--</span>
+            </div>
+            <div class="top-center">
+                <div class="range-btns">
+                    <button class="range-btn active" data-range="week" onclick="switchRange('week')">本周</button>
+                    <button class="range-btn" data-range="month" onclick="switchRange('month')">本月</button>
+                    <button class="range-btn" data-range="semester" onclick="switchRange('semester')">本学期</button>
+                </div>
+            </div>
+            <div class="top-right">
+                <span class="top-week" id="topWeek">--</span>
+                <span class="top-time" id="topTime">--</span>
+            </div>
+        </div>
+
+        <!-- 主内容 -->
+        <div class="main-content">
+            <!-- KPI 指标 -->
+            <div class="kpi-row" id="kpiRow"></div>
+
+            <!-- 报修趋势 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title" id="trendTitle">📈 报修趋势</span>
+                    <span class="panel-hint">单位：条</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box" id="chartTrend"></div>
+                </div>
+            </div>
+
+            <!-- 故障类型 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">🔧 故障类型分布</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box" id="chartFault"></div>
+                </div>
+            </div>
+
+            <!-- 实时报修 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">📋 实时报修动态</span>
+                    <span class="panel-hint" id="liveCount">--</span>
+                </div>
+                <div class="panel-body">
+                    <div class="live-list" id="liveList">
+                        <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 楼栋报修 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">🏢 楼栋报修统计</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box" id="chartBuilding"></div>
+                </div>
+            </div>
+
+            <!-- 学院排行 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">🎓 学院报修排行</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box" id="chartCollege"></div>
+                </div>
+            </div>
+
+            <!-- 处理人工作量 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">👤 处理人工作量</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box" id="chartHandler"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下钻详情面板 -->
+    <div class="drill-overlay" id="drillOverlay">
+        <div class="drill-panel">
+            <div class="drill-header">
+                <button class="drill-back" onclick="closeDrill()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    返回
+                </button>
+                <h2 class="drill-title" id="drillTitle">--</h2>
+                <span class="drill-range" id="drillRange">--</span>
+            </div>
+            <div class="drill-content" id="drillContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = (window.location.origin && window.location.origin !== 'null') ? window.location.origin : 'http://localhost:5000';
+        let currentRange = 'week';
+        let charts = [];
+
+        function esc(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // 时间更新
+        function updateTime() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('topTime').textContent =
+                `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${h}:${m}:${s}`;
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // 数字动画
+        function animateNum(el, target, suffix) {
+            suffix = suffix || '';
+            const start = parseFloat(el.textContent) || 0;
+            const diff = target - start;
+            if (diff === 0) { el.textContent = target + suffix; return; }
+            const steps = 30;
+            const inc = diff / steps;
+            let cur = start, step = 0;
+            const timer = setInterval(() => {
+                step++; cur += inc;
+                if (step >= steps) { cur = target; clearInterval(timer); }
+                el.textContent = Math.round(cur * 10) / 10 + suffix;
+            }, 30);
+        }
+
+        // 时间范围切换
+        function switchRange(range) {
+            currentRange = range;
+            document.querySelectorAll('.range-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.range === range);
+            });
+            loadData();
+        }
+
+        // 渐变色工厂
+        function gradientBar(color1, color2) {
+            return new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                { offset: 0, color: color1 }, { offset: 1, color: color2 }
+            ]);
+        }
+
+        // 横向柱状图通用配置
+        function barChartOption(keys, vals, color) {
+            return {
+                backgroundColor: 'transparent',
+                textStyle: { color: 'rgba(232,236,241,0.7)' },
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(16,42,76,0.9)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#E8ECF1' } },
+                grid: { left: '25%', right: '8%', top: '8%', bottom: '12%' },
+                xAxis: { type: 'value', minInterval: 1, axisLabel: { color: 'rgba(255,255,255,0.4)' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+                yAxis: { type: 'category', data: keys, inverse: true, axisLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } } },
+                series: [{ type: 'bar', data: vals, barWidth: '50%', itemStyle: { borderRadius: [0, 4, 4, 0], color: color } }]
+            };
+        }
+
+        // 加载数据
+        async function loadData() {
+            try {
+                charts.forEach(c => { try { c.dispose(); } catch (e) { } });
+                charts = [];
+
+                const res = await fetch(`${API_BASE}/api/repair/dashboard-stats?range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const s = res.data;
+
+                // 周次
+                document.getElementById('topWeek').textContent = s.current_week ? `第 ${s.current_week} 周` : '--';
+
+                // 数据源
+                try {
+                    const sr = await fetch(`${API_BASE}/admin/status`).then(r => r.json());
+                    if (sr.status === 'ok') document.getElementById('topSource').textContent = `数据来源：${sr.data.source || '--'}`;
+                } catch (e) { }
+
+                // KPI
+                document.getElementById('kpiRow').innerHTML = `
+                    <div class="kpi-card"><span class="kpi-icon">TOTAL</span><span class="kpi-value" data-n="${s.total_count || 0}">0</span><span class="kpi-label">${s.range_label || ''}报修总数</span></div>
+                    <div class="kpi-card" style="cursor:pointer" onclick="drillPending()"><span class="kpi-icon">PENDING</span><span class="kpi-value" data-n="${s.pending_count || 0}">0</span><span class="kpi-label">待处理</span></div>
+                    <div class="kpi-card"><span class="kpi-icon">RATE</span><span class="kpi-value" data-n="${s.resolved_rate || 0}" data-suffix="%">0</span><span class="kpi-label">处理率</span></div>
+                    <div class="kpi-card"><span class="kpi-icon">AVG DAYS</span><span class="kpi-value" data-n="${s.avg_process_days || 0}" data-suffix="天">0</span><span class="kpi-label">平均处理周期</span></div>
+                    <div class="kpi-card"><span class="kpi-icon">WEEK</span><span class="kpi-value" data-n="${s.current_week || 0}" data-suffix="/${s.total_weeks || 20}">0</span><span class="kpi-label">教学周进度</span></div>
+                `;
+                document.querySelectorAll('.kpi-value[data-n]').forEach(el => {
+                    animateNum(el, parseFloat(el.dataset.n), el.dataset.suffix || '');
+                });
+
+                // 趋势标题
+                document.getElementById('trendTitle').textContent = `📈 报修趋势（${s.range_label || ''}）`;
+
+                // 趋势图（按周号排序）
+                if (s.trend && Object.keys(s.trend).length > 0) {
+                    const c = echarts.init(document.getElementById('chartTrend'));
+                    const sortedEntries = Object.entries(s.trend).sort((a, b) => {
+                        const na = parseInt(a[0].replace(/\D/g, '')) || 0;
+                        const nb = parseInt(b[0].replace(/\D/g, '')) || 0;
+                        return na - nb;
+                    });
+                    const keys = sortedEntries.map(e => e[0]);
+                    const vals = sortedEntries.map(e => e[1]);
+                    const weekDays = ['周日','周一','周二','周三','周四','周五','周六'];
+                    const labels = currentRange === 'week'
+                        ? keys.map(k => { const d = new Date(k); return isNaN(d) ? k : weekDays[d.getDay()]; })
+                        : keys.map(k => k.length > 5 ? k.substring(5) : k);
+                    c.setOption({
+                        backgroundColor: 'transparent',
+                        textStyle: { color: 'rgba(232,236,241,0.7)' },
+                        tooltip: { trigger: 'axis', backgroundColor: 'rgba(16,42,76,0.9)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#E8ECF1' } },
+                        grid: { left: '8%', right: '4%', top: '10%', bottom: '18%' },
+                        xAxis: { type: 'category', data: labels, axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, rotate: keys.length > 15 ? 45 : 0 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } } },
+                        yAxis: { type: 'value', minInterval: 1, axisLabel: { color: 'rgba(255,255,255,0.4)' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+                        series: [{ type: 'line', data: vals, smooth: true, lineStyle: { color: '#00D4FF', width: 2 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(0,212,255,0.3)' }, { offset: 1, color: 'rgba(0,212,255,0)' }]) }, itemStyle: { color: '#00D4FF' }, symbol: 'circle', symbolSize: keys.length > 20 ? 0 : 6 }]
+                    });
+                    charts.push(c);
+                }
+
+                // 故障类型
+                if (s.fault_types && Object.keys(s.fault_types).length > 0) {
+                    const c = echarts.init(document.getElementById('chartFault'));
+                    const colors = ['#FF6B6B', '#FFA502', '#2ED573', '#4F7CFF', '#00D4FF', '#A855F7', '#F472B6', '#FBBF24', '#34D399', '#818CF8'];
+                    c.setOption({
+                        backgroundColor: 'transparent',
+                        textStyle: { color: 'rgba(232,236,241,0.7)' },
+                        tooltip: { trigger: 'item', backgroundColor: 'rgba(16,42,76,0.9)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#E8ECF1' } },
+                        legend: { bottom: 0, textStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
+                        series: [{ type: 'pie', radius: ['35%', '62%'], label: { show: true, formatter: '{b}\n{d}%', color: 'rgba(255,255,255,0.6)', fontSize: 10 }, labelLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } }, data: Object.entries(s.fault_types).map(([n, v], i) => ({ name: n, value: v, itemStyle: { color: colors[i % colors.length] } })) }]
+                    });
+                    charts.push(c);
+                }
+
+                // 楼栋
+                if (s.building_stats && Object.keys(s.building_stats).length > 0) {
+                    const c = echarts.init(document.getElementById('chartBuilding'));
+                    c.setOption(barChartOption(Object.keys(s.building_stats).reverse(), Object.values(s.building_stats).reverse(), gradientBar('rgba(0,212,255,0.2)', '#00D4FF')));
+                    charts.push(c);
+                }
+
+                // 学院（dataZoom 自动滚动）
+                if (s.college_stats && Object.keys(s.college_stats).length > 0) {
+                    const c = echarts.init(document.getElementById('chartCollege'));
+                    const keys = Object.keys(s.college_stats).reverse();
+                    const vals = Object.values(s.college_stats).reverse();
+                    const showCount = 8;
+                    const endPercent = keys.length > showCount ? (showCount / keys.length * 100) : 100;
+                    c.setOption({
+                        ...barChartOption(keys, vals, gradientBar('rgba(168,85,247,0.2)', '#A855F7')),
+                        dataZoom: [{
+                            type: 'slider', yAxisIndex: 0, start: 0, end: endPercent,
+                            right: 2, width: 4, borderColor: 'transparent',
+                            backgroundColor: 'rgba(0,212,255,0.05)',
+                            fillerColor: 'rgba(0,212,255,0.15)',
+                            handleSize: 0, show: false
+                        }]
+                    });
+                    charts.push(c);
+                }
+
+                // 处理人（dataZoom 自动滚动）
+                if (s.handler_stats && Object.keys(s.handler_stats).length > 0) {
+                    const c = echarts.init(document.getElementById('chartHandler'));
+                    const keys = Object.keys(s.handler_stats).reverse();
+                    const vals = Object.values(s.handler_stats).reverse();
+                    const showCount = 8;
+                    const endPercent = keys.length > showCount ? (showCount / keys.length * 100) : 100;
+                    c.setOption({
+                        ...barChartOption(keys, vals, gradientBar('rgba(46,213,115,0.2)', '#2ED573')),
+                        dataZoom: [{
+                            type: 'slider', yAxisIndex: 0, start: 0, end: endPercent,
+                            right: 2, width: 4, borderColor: 'transparent',
+                            backgroundColor: 'rgba(0,212,255,0.05)',
+                            fillerColor: 'rgba(0,212,255,0.15)',
+                            handleSize: 0, show: false
+                        }]
+                    });
+                    charts.push(c);
+                }
+
+                // 实时报修
+                window._latestRepairs = s.latest_repairs || [];
+                const container = document.getElementById('liveList');
+                const latest = window._latestRepairs;
+                document.getElementById('liveCount').textContent = `共 ${s.total_count || 0} 条`;
+                if (latest.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无报修记录</div>';
+                } else {
+                    const buildItems = (items) => items.map(item => {
+                        let cls = 'tag-new', text = item.status || '未处理';
+                        if (item.status === '已处理' || item.status === '已解决') cls = 'tag-done';
+                        else if (item.status === '处理中') cls = 'tag-processing';
+                        return `<div class="live-item">
+                            <div class="live-left">
+                                <div class="live-room">${esc(item.classroom) || '--'}</div>
+                                <div class="live-info">${esc(item.fault_type) || '--'} · ${esc(item.reporter_name) || '--'} · ${esc(item.report_time) || '--'}</div>
+                            </div>
+                            <span class="live-tag ${cls}">${esc(text)}</span>
+                        </div>`;
+                    }).join('');
+                    container.innerHTML = `<div class="live-list-inner">${buildItems(latest)}${buildItems(latest)}</div>`;
+                }
+
+            } catch (e) {
+                console.error('加载大屏数据失败:', e);
+            }
+
+            // 绑定图表下钻点击事件
+            bindChartClicks();
+
+            // 启动图表流动动画
+            startChartAnimations();
+        }
+
+        // ============================================================
+        // 图表流动动画
+        // ============================================================
+        let chartAnimTimers = [];
+
+        function startChartAnimations() {
+            chartAnimTimers.forEach(t => clearInterval(t));
+            chartAnimTimers = [];
+
+            // 柱状图高亮循环（楼栋、学院、处理人）
+            ['chartBuilding', 'chartCollege', 'chartHandler'].forEach(chartId => {
+                const chart = charts.find(c => c.getDom() === document.getElementById(chartId));
+                if (!chart) return;
+                const dataLen = (chart.getOption().series[0]?.data?.length) || 0;
+                if (dataLen <= 1) return;
+                let idx = -1;
+                const timer = setInterval(() => {
+                    chart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+                    idx = (idx + 1) % dataLen;
+                    chart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx });
+                    chart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+                }, 2000);
+                chartAnimTimers.push(timer);
+            });
+
+            // 饼图高亮旋转（故障类型）
+            const pieChart = charts.find(c => c.getDom() === document.getElementById('chartFault'));
+            if (pieChart) {
+                const dataLen = (pieChart.getOption().series[0]?.data?.length) || 0;
+                if (dataLen > 1) {
+                    let idx = -1;
+                    const timer = setInterval(() => {
+                        pieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+                        idx = (idx + 1) % dataLen;
+                        pieChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx });
+                        pieChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+                    }, 2500);
+                    chartAnimTimers.push(timer);
+                }
+            }
+
+            // 趋势图：数据点依次闪烁
+            const trendChart = charts.find(c => c.getDom() === document.getElementById('chartTrend'));
+            if (trendChart) {
+                const dataLen = (trendChart.getOption().series[0]?.data?.length) || 0;
+                if (dataLen > 1) {
+                    let idx = 0;
+                    const timer = setInterval(() => {
+                        trendChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+                        idx = (idx + 1) % dataLen;
+                    }, 1500);
+                    chartAnimTimers.push(timer);
+                }
+            }
+
+            // 学院和处理人图表 dataZoom 自动滚动
+            ['chartCollege', 'chartHandler'].forEach(chartId => {
+                const chart = charts.find(c => c.getDom() === document.getElementById(chartId));
+                if (!chart) return;
+                const opt = chart.getOption();
+                const dataLen = opt.yAxis?.[0]?.data?.length || 0;
+                const showCount = 8;
+                if (dataLen <= showCount) return;
+
+                let start = 0;
+                const scrollTimer = setInterval(() => {
+                    start += 1;
+                    if (start > dataLen - showCount) start = 0;
+                    chart.dispatchAction({
+                        type: 'dataZoom',
+                        startValue: start,
+                        endValue: start + showCount
+                    });
+                }, 3000);
+                chartAnimTimers.push(scrollTimer);
+            });
+        }
+
+        // ============================================================
+        // 下钻功能
+        // ============================================================
+        let drillCharts = [];
+
+        function openDrill(title) {
+            document.getElementById('drillOverlay').classList.add('show');
+            document.getElementById('drillTitle').textContent = title;
+            document.getElementById('drillRange').textContent = { week: '本周', month: '本月', semester: '本学期' }[currentRange] || '本学期';
+            drillCharts.forEach(c => { try { c.dispose(); } catch (e) { } });
+            drillCharts = [];
+        }
+
+        function closeDrill() {
+            document.getElementById('drillOverlay').classList.remove('show');
+            drillCharts.forEach(c => { try { c.dispose(); } catch (e) { } });
+            drillCharts = [];
+        }
+
+        // ESC 键关闭下钻面板
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeDrill();
+        });
+
+        // 楼栋下钻
+        async function drillBuilding(building) {
+            openDrill(building + ' - 楼栋分析');
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/building?building=${encodeURIComponent(building)}&range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+
+                document.getElementById('drillContent').innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">总报修数</div><div class="drill-kpi-value">${d.total}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">待处理</div><div class="drill-kpi-value">${d.pending}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">处理率</div><div class="drill-kpi-value">${d.rate}%</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">最常故障教室</div><div class="drill-kpi-value" style="font-size:16px">${esc(d.most_room)}</div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card"><div class="drill-chart-title">故障类型分布</div><div class="drill-chart-body" id="drillFault"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">楼层报修分布</div><div class="drill-chart-body" id="drillFloor"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">教室报修排行 Top10</div><div class="drill-chart-body" id="drillRoom"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">报修趋势</div><div class="drill-chart-body" id="drillTrend"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">最近报修记录</div>
+                        <div class="drill-list-body">${renderDrillList(d.latest)}</div>
+                    </div>
+                `;
+
+                renderDrillPie('drillFault', d.fault_types);
+                renderDrillBar('drillFloor', d.floor_stats, '#FFA502');
+                renderDrillBar('drillRoom', d.room_stats, '#00D4FF');
+                renderDrillLine('drillTrend', d.trend);
+            } catch (e) { console.error('楼栋下钻失败:', e); }
+        }
+
+        // 学院下钻
+        async function drillCollege(college) {
+            openDrill(college + ' - 学院分析');
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/college?college=${encodeURIComponent(college)}&range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+
+                document.getElementById('drillContent').innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">总报修数</div><div class="drill-kpi-value">${d.total}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">报修教师数</div><div class="drill-kpi-value">${d.teacher_count}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">处理率</div><div class="drill-kpi-value">${d.rate}%</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">待处理</div><div class="drill-kpi-value">${d.pending}</div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card"><div class="drill-chart-title">报修教师排行 Top10</div><div class="drill-chart-body" id="drillTeacher"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">故障类型分布</div><div class="drill-chart-body" id="drillFault"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">报修教室分布 Top10</div><div class="drill-chart-body" id="drillRoom"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">报修方式分布</div><div class="drill-chart-body" id="drillMethod"></div></div>
+                        <div class="drill-chart-card drill-chart-full"><div class="drill-chart-title">报修趋势</div><div class="drill-chart-body" id="drillTrend"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">最近报修记录</div>
+                        <div class="drill-list-body">${renderDrillList(d.latest)}</div>
+                    </div>
+                `;
+
+                renderDrillBar('drillTeacher', d.teacher_stats, '#A855F7');
+                renderDrillPie('drillFault', d.fault_types);
+                renderDrillBar('drillRoom', d.room_stats, '#00D4FF');
+                renderDrillPie('drillMethod', d.method_stats);
+                renderDrillLine('drillTrend', d.trend);
+            } catch (e) { console.error('学院下钻失败:', e); }
+        }
+
+        // 处理人下钻
+        async function drillHandler(handler) {
+            openDrill(handler + ' - 处理人分析');
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/handler?handler=${encodeURIComponent(handler)}&range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+
+                document.getElementById('drillContent').innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">总处理数</div><div class="drill-kpi-value">${d.total}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">待处理</div><div class="drill-kpi-value">${d.pending}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">处理率</div><div class="drill-kpi-value">${d.rate}%</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">平均处理天数</div><div class="drill-kpi-value">${d.avg_days}<span style="font-size:12px;color:rgba(255,255,255,0.4)"> (系统${d.sys_avg_days}天)</span></div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card"><div class="drill-chart-title">处理故障类型</div><div class="drill-chart-body" id="drillFault"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">处理楼栋分布</div><div class="drill-chart-body" id="drillBuildingChart"></div></div>
+                        <div class="drill-chart-card drill-chart-full"><div class="drill-chart-title">处理量趋势</div><div class="drill-chart-body" id="drillTrend"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">待处理工单 (${d.pending_list.length}条)</div>
+                        <div class="drill-list-body">${renderDrillList(d.pending_list)}</div>
+                    </div>
+                `;
+
+                renderDrillPie('drillFault', d.fault_types);
+                renderDrillBar('drillBuildingChart', d.building_stats, '#2ED573');
+                renderDrillLine('drillTrend', d.trend);
+            } catch (e) { console.error('处理人下钻失败:', e); }
+        }
+
+        // 故障类型下钻
+        async function drillFaultType(faultType) {
+            openDrill(faultType + ' - 故障类型分析');
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/fault-type?fault_type=${encodeURIComponent(faultType)}&range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+
+                document.getElementById('drillContent').innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">该类型总数</div><div class="drill-kpi-value">${d.total}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">占比</div><div class="drill-kpi-value">${d.ratio}%</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">涉及楼栋</div><div class="drill-kpi-value">${d.building_count}<span style="font-size:12px;color:rgba(255,255,255,0.4)"> 栋</span></div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">涉及教室</div><div class="drill-kpi-value">${d.classroom_count}<span style="font-size:12px;color:rgba(255,255,255,0.4)"> 间</span></div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card"><div class="drill-chart-title">楼栋分布</div><div class="drill-chart-body" id="drillBuildingChart"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">学院分布</div><div class="drill-chart-body" id="drillCollegeChart"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">处理人分布</div><div class="drill-chart-body" id="drillHandlerChart"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">报修趋势</div><div class="drill-chart-body" id="drillTrend"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">最近报修记录</div>
+                        <div class="drill-list-body">${renderDrillList(d.latest)}</div>
+                    </div>
+                `;
+
+                renderDrillBar('drillBuildingChart', d.building_stats, '#00D4FF');
+                renderDrillBar('drillCollegeChart', d.college_stats, '#A855F7');
+                renderDrillPie('drillHandlerChart', d.handler_stats);
+                renderDrillLine('drillTrend', d.trend);
+            } catch (e) { console.error('故障类型下钻失败:', e); }
+        }
+
+        // 报修详情下钻
+        async function drillRepair(repairId) {
+            openDrill('报修详情');
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/repair?id=${repairId}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+                const r = d.repair;
+
+                document.getElementById('drillContent').innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">故障教室</div><div class="drill-kpi-value" style="font-size:18px">${esc(r.classroom)}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">报修类型</div><div class="drill-kpi-value" style="font-size:18px">${esc(r.fault_type)}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">处理状态</div><div class="drill-kpi-value" style="font-size:18px">${esc(r.status)}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">报修人</div><div class="drill-kpi-value" style="font-size:18px">${esc(r.reporter_name)}</div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card" style="padding:16px">
+                            <div class="drill-chart-title">报修详情</div>
+                            <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:2;padding:8px 0">
+                                <div>报修时间：${esc(r.report_time) || '--'}</div>
+                                <div>周次：第${r.week_number || '--'}周</div>
+                                <div>报修方式：${esc(r.report_method) || '--'}</div>
+                                <div>报修人学院：${esc(r.reporter_college) || '--'}</div>
+                                <div>处理人：${esc(r.handler_name) || '--'}</div>
+                                <div>故障原因：${esc(r.fault_cause) || '--'}</div>
+                                <div>处理方式：${esc(r.solution) || '--'}</div>
+                                <div>备注：${esc(r.notes) || '--'}</div>
+                            </div>
+                        </div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">${esc(r.classroom)} 历史故障类型分布</div><div class="drill-chart-body" id="drillFault"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">同教室历史报修（${esc(r.classroom)}）</div>
+                        <div class="drill-list-body">${renderDrillList(d.same_room_history)}</div>
+                    </div>
+                `;
+
+                renderDrillPie('drillFault', d.room_fault_types);
+            } catch (e) { console.error('报修详情下钻失败:', e); }
+        }
+
+        // 待处理下钻
+        async function drillPending() {
+            openDrill('⚠️ 待处理工单');
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/pending?range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+
+                const content = document.getElementById('drillContent');
+                content.innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">待处理总数</div><div class="drill-kpi-value">${d.total}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">未处理</div><div class="drill-kpi-value">${d.unhandled_count}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">处理中</div><div class="drill-kpi-value">${d.processing_count}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">涉及楼栋</div><div class="drill-kpi-value">${Object.keys(d.building_stats).length}</div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card"><div class="drill-chart-title">楼栋分布</div><div class="drill-chart-body" id="drillBuilding"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">故障类型分布</div><div class="drill-chart-body" id="drillFault"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">未处理工单 (${d.unhandled_count}条)</div>
+                        <div class="drill-list-body">${renderDrillList(d.pending_list.filter(r => r.status === '未处理'))}</div>
+                    </div>
+                    <div class="drill-list" style="margin-top:12px">
+                        <div class="drill-list-title">处理中工单 (${d.processing_count}条)</div>
+                        <div class="drill-list-body">${renderDrillList(d.pending_list.filter(r => r.status === '处理中'))}</div>
+                    </div>
+                `;
+
+                renderDrillBar('drillBuilding', d.building_stats, '#FFA502');
+                renderDrillPie('drillFault', d.fault_stats);
+            } catch (e) { console.error('待处理下钻失败:', e); }
+        }
+
+        // 教室下钻
+        async function drillClassroom(classroom) {
+            openDrill(`🏫 ${classroom} - 教室分析`);
+            try {
+                const res = await fetch(`${API_BASE}/api/repair/drill/classroom?classroom=${encodeURIComponent(classroom)}&range=${currentRange}`).then(r => r.json());
+                if (res.status !== 'ok') return;
+                const d = res.data;
+
+                const content = document.getElementById('drillContent');
+                content.innerHTML = `
+                    <div class="drill-kpi">
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">总报修数</div><div class="drill-kpi-value">${d.total}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">待处理</div><div class="drill-kpi-value">${d.pending}</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">处理率</div><div class="drill-kpi-value">${d.rate}%</div></div>
+                        <div class="drill-kpi-card"><div class="drill-kpi-label">平均处理天数</div><div class="drill-kpi-value">${d.avg_days}</div></div>
+                    </div>
+                    <div class="drill-charts">
+                        <div class="drill-chart-card"><div class="drill-chart-title">该教室故障类型分布</div><div class="drill-chart-body" id="drillFault"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">该教室故障原因排行</div><div class="drill-chart-body" id="drillCause"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">报修趋势</div><div class="drill-chart-body" id="drillTrend"></div></div>
+                        <div class="drill-chart-card"><div class="drill-chart-title">处理人分布</div><div class="drill-chart-body" id="drillHandler"></div></div>
+                    </div>
+                    <div class="drill-list">
+                        <div class="drill-list-title">最近报修记录</div>
+                        <div class="drill-list-body">${renderDrillList(d.latest)}</div>
+                    </div>
+                `;
+
+                renderDrillPie('drillFault', d.fault_stats);
+                renderDrillBar('drillCause', d.cause_stats, '#FF6B6B');
+                renderDrillLine('drillTrend', d.trend);
+                renderDrillPie('drillHandler', d.handler_stats);
+            } catch (e) { console.error('教室下钻失败:', e); }
+        }
+
+        // ============================================================
+        // 下钻图表渲染工具函数
+        // ============================================================
+
+        function renderDrillPie(domId, data) {
+            if (!data || Object.keys(data).length === 0) return;
+            const el = document.getElementById(domId);
+            if (!el) return;
+            const c = echarts.init(el);
+            const colors = ['#FF6B6B', '#FFA502', '#2ED573', '#4F7CFF', '#00D4FF', '#A855F7', '#F472B6', '#FBBF24', '#34D399', '#818CF8'];
+            c.setOption({
+                backgroundColor: 'transparent',
+                textStyle: { color: 'rgba(232,236,241,0.7)' },
+                tooltip: { trigger: 'item', backgroundColor: 'rgba(16,42,76,0.9)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#E8ECF1' } },
+                legend: { bottom: 0, textStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 10 }, itemWidth: 8, itemHeight: 8 },
+                series: [{ type: 'pie', radius: ['35%', '60%'], label: { show: true, formatter: '{b}\n{d}%', color: 'rgba(255,255,255,0.6)', fontSize: 10 }, data: Object.entries(data).map(([n, v], i) => ({ name: n, value: v, itemStyle: { color: colors[i % colors.length] } })) }]
+            });
+            drillCharts.push(c);
+        }
+
+        function renderDrillBar(domId, data, color) {
+            if (!data || Object.keys(data).length === 0) return;
+            const el = document.getElementById(domId);
+            if (!el) return;
+            const c = echarts.init(el);
+            const keys = Object.keys(data).reverse();
+            const vals = Object.values(data).reverse();
+            c.setOption({
+                backgroundColor: 'transparent',
+                textStyle: { color: 'rgba(232,236,241,0.7)' },
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(16,42,76,0.9)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#E8ECF1' } },
+                grid: { left: '25%', right: '8%', top: '8%', bottom: '12%' },
+                xAxis: { type: 'value', minInterval: 1, axisLabel: { color: 'rgba(255,255,255,0.4)' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+                yAxis: { type: 'category', data: keys, inverse: true, axisLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } } },
+                series: [{ type: 'bar', data: vals, barWidth: '50%', itemStyle: { borderRadius: [0, 4, 4, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: color + '33' }, { offset: 1, color: color }]) } }]
+            });
+            drillCharts.push(c);
+        }
+
+        function renderDrillLine(domId, data) {
+            if (!data || Object.keys(data).length === 0) return;
+            const el = document.getElementById(domId);
+            if (!el) return;
+            const c = echarts.init(el);
+            const sortedEntries = Object.entries(data).sort((a, b) => {
+                const na = parseInt(a[0].replace(/\D/g, '')) || 0;
+                const nb = parseInt(b[0].replace(/\D/g, '')) || 0;
+                return na - nb;
+            });
+            const keys = sortedEntries.map(e => e[0]);
+            const vals = sortedEntries.map(e => e[1]);
+            const weekDays = ['周日','周一','周二','周三','周四','周五','周六'];
+            const isDateKey = keys.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(keys[0]);
+            const labels = isDateKey
+                ? keys.map(k => { const d = new Date(k); return isNaN(d) ? k : weekDays[d.getDay()]; })
+                : keys.map(k => k.length > 5 ? k.substring(5) : k);
+            c.setOption({
+                backgroundColor: 'transparent',
+                textStyle: { color: 'rgba(232,236,241,0.7)' },
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(16,42,76,0.9)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#E8ECF1' } },
+                grid: { left: '8%', right: '4%', top: '10%', bottom: '18%' },
+                xAxis: { type: 'category', data: labels, axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, rotate: keys.length > 15 ? 45 : 0 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } } },
+                yAxis: { type: 'value', minInterval: 1, axisLabel: { color: 'rgba(255,255,255,0.4)' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+                series: [{ type: 'line', data: vals, smooth: true, lineStyle: { color: '#00D4FF', width: 2 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(0,212,255,0.3)' }, { offset: 1, color: 'rgba(0,212,255,0)' }]) }, itemStyle: { color: '#00D4FF' }, symbol: 'circle', symbolSize: keys.length > 20 ? 0 : 5 }]
+            });
+            drillCharts.push(c);
+        }
+
+        function renderDrillList(records) {
+            if (!records || records.length === 0) return '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3)">暂无记录</div>';
+            return records.map(item => {
+                let cls = 'tag-new', text = item.status || '未处理';
+                if (item.status === '已处理' || item.status === '已解决') cls = 'tag-done';
+                else if (item.status === '处理中') cls = 'tag-processing';
+                const handler = item.handler_name ? ' · 处理人: ' + esc(item.handler_name) : '';
+                return '<div class="drill-list-item" style="cursor:pointer">' +
+                    '<div class="drill-list-left">' +
+                    '<div class="drill-list-main"><span class="drill-link" onclick="event.stopPropagation();drillClassroom(\'' + esc(item.classroom) + '\')">' + esc(item.classroom) + '</span> · ' + esc(item.fault_type) + '</div>' +
+                    '<div class="drill-list-sub">' + esc(item.reporter_name) + handler + ' · ' + esc(item.report_time) + '</div>' +
+                    '</div>' +
+                    '<span class="drill-list-tag ' + cls + '">' + esc(text) + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function bindChartClicks() {
+            // 楼栋柱状图点击
+            const buildingChart = charts.find(c => c.getDom() === document.getElementById('chartBuilding'));
+            if (buildingChart) {
+                buildingChart.on('click', function (params) {
+                    if (params.name) drillBuilding(params.name);
+                });
+            }
+
+            // 学院柱状图点击
+            const collegeChart = charts.find(c => c.getDom() === document.getElementById('chartCollege'));
+            if (collegeChart) {
+                collegeChart.on('click', function (params) {
+                    if (params.name) drillCollege(params.name);
+                });
+            }
+
+            // 处理人柱状图点击
+            const handlerChart = charts.find(c => c.getDom() === document.getElementById('chartHandler'));
+            if (handlerChart) {
+                handlerChart.on('click', function (params) {
+                    if (params.name) drillHandler(params.name);
+                });
+            }
+
+            // 故障类型饼图点击
+            const faultChart = charts.find(c => c.getDom() === document.getElementById('chartFault'));
+            if (faultChart) {
+                faultChart.on('click', function (params) {
+                    if (params.name) drillFaultType(params.name);
+                });
+            }
+
+            // 实时报修列表点击（通过事件委托）
+            const liveContainer = document.getElementById('liveList');
+            if (liveContainer && !liveContainer._drillBound) {
+                liveContainer._drillBound = true;
+                liveContainer.addEventListener('click', function (e) {
+                    const item = e.target.closest('.live-item');
+                    if (!item) return;
+                    const roomEl = item.querySelector('.live-room');
+                    if (roomEl) {
+                        const latest = window._latestRepairs || [];
+                        const record = latest.find(r => r.classroom === roomEl.textContent);
+                        if (record) drillRepair(record.id);
+                    }
+                });
+            }
+        }
+
+        // 初始化
+        loadData();
+        setInterval(loadData, 60000);
+    </script>
+</body>
+
+</html>

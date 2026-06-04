@@ -1,0 +1,26 @@
+{
+    "admin": {
+        "username": "admin",
+        "password_hash": "请使用 SHA256 哈希后的密码，或通过后台首次登录后自动生成"
+    },
+    "datasource": {
+        "type": "excel",
+        "current_excel": "uploads/课表文件名.xlsx",
+        "api": {
+            "base_url": "https://your-school-api.example.com",
+            "username": "",
+            "password": "",
+            "xnm": "2025",
+            "xqm": "12",
+            "xqh_id": ""
+        }
+    },
+    "semester": {
+        "start_date": "2026-03-02"
+    },
+    "cache": {
+        "ttl_seconds": 1800,
+        "background_refresh": true,
+        "fallback_to_stale": true
+    }
+}

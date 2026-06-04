@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运维报告 - 重庆移通学院綦江校区多媒体设备报修管理平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .navbar h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .navbar .back-btn {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .navbar .back-btn:hover {
+            opacity: 1;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 24px auto;
+            padding: 0 24px;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .control-panel h2 {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 16px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .btn-outline {
+            background: white;
+            color: #667eea;
+            border: 1px solid #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #f0f2ff;
+        }
+
+        /* 报告容器 */
+        .report-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .report-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .report-header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .report-header h2 {
+            font-size: 20px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
+
+        .report-header .time {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 12px;
+        }
+
+        .report-content {
+            padding: 24px;
+        }
+
+        /* 区块 */
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        /* KPI 卡片 */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .kpi-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .kpi-card .label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .kpi-card .change {
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .kpi-card .change.up {
+            color: #e74c3c;
+        }
+
+        .kpi-card .change.down {
+            color: #27ae60;
+        }
+
+        /* 表格 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* 徽章 */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* 教室分组 */
+        .classroom-group {
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .classroom-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .classroom-header:hover {
+            background: #e9ecef;
+        }
+
+        .classroom-header .count {
+            color: #667eea;
+        }
+
+        .classroom-header .semester {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .classroom-body {
+            display: none;
+        }
+
+        .classroom-body.expanded {
+            display: block;
+        }
+
+        .classroom-body table {
+            margin: 0;
+        }
+
+        /* 图表容器 */
+        .chart-container {
+            height: 350px;
+            margin: 16px 0;
+        }
+
+        /* 建议卡片 */
+        .advice-item {
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .advice-item.alert {
+            background: #fff5f5;
+            border-color: #e74c3c;
+        }
+
+        .advice-item.warning {
+            background: #fffaf0;
+            border-color: #f39c12;
+        }
+
+        .advice-item.info {
+            background: #f0f7ff;
+            border-color: #3498db;
+        }
+
+        .advice-item .title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .advice-item .content {
+            color: #555;
+        }
+
+        .advice-item .action {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        /* 趋势 */
+        .trend-up {
+            color: #e74c3c;
+        }
+
+        .trend-down {
+            color: #27ae60;
+        }
+
+        .trend-flat {
+            color: #95a5a6;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            .control-group select,
+            .control-group input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <a href="/" class="back-btn">← 返回首页</a>
+        <h1>📊 运维报告生成</h1>
+        <div></div>
+    </div>
+
+    <div class="container">
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <h2>报告配置</h2>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>报告类型：</label>
+                    <select id="reportType" onchange="onReportTypeChange()">
+                        <option value="weekly">周报</option>
+                        <option value="monthly">月报</option>
+                        <option value="semester">学期报告</option>
+                    </select>
+                </div>
+
+                <div class="control-group" id="weekGroup">
+                    <label>周次：</label>
+                    <select id="weekSelect">
+                        <!-- 动态加载 -->
+                    </select>
+                </div>
+
+                <div class="control-group" id="monthGroup" style="display: none;">
+                    <label>月份：</label>
+                    <input type="month" id="monthSelect" />
+                </div>
+
+                <div class="control-group" id="semesterGroup" style="display: none;">
+                    <label>学期：</label>
+                    <select id="semesterSelect">
+                        <option value="">本学期</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="generateReport()">
+                    📊 生成报告
+                </button>
+
+                <button class="btn btn-success" onclick="exportExcel()" id="exportBtn" style="display: none;">
+                    📥 导出 Excel
+                </button>
+
+                <button class="btn btn-outline" onclick="previewReport()" id="previewBtn" style="display: none;">
+                    🖨️ 打印预览
+                </button>
+            </div>
+        </div>
+
+        <!-- 报告容器 -->
+        <div class="report-container" id="reportContainer">
+            <div class="empty-state">
+                <div class="icon">📊</div>
+                <p>请选择报告类型并点击"生成报告"</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 基础地址
+        const API_BASE = '';
+
+        // 当前报告数据
+        let currentReportData = null;
+        let currentReportType = 'weekly';
+
+        // 页面加载时初始化
+        window.onload = function () {
+            loadWeeks();
+            initMonthSelect();
+        };
+
+        // 加载周次列表
+        async function loadWeeks() {
+            try {
+                const response = await fetch(`${API_BASE}/api/report/weeks`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    const weeks = data.data.weeks;
+                    const currentWeek = data.data.current_week;
+                    const select = document.getElementById('weekSelect');
+
+                    select.innerHTML = '';
+                    weeks.reverse().forEach(week => {
+                        const option = document.createElement('option');
+                        option.value = week.week_number;
+                        option.textContent = `${week.label}（${week.date_range}）`;
+                        if (week.week_number === currentWeek) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载周次列表失败:', error);
+            }
+        }
+
+        // 初始化月份选择器
+        function initMonthSelect() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('monthSelect').value = `${year}-${month}`;
+        }
+
+        // 报告类型切换
+        function onReportTypeChange() {
+            const type = document.getElementById('reportType').value;
+            document.getElementById('weekGroup').style.display = type === 'weekly' ? 'flex' : 'none';
+            document.getElementById('monthGroup').style.display = type === 'monthly' ? 'flex' : 'none';
+            document.getElementById('semesterGroup').style.display = type === 'semester' ? 'flex' : 'none';
+        }
+
+        // 获取认证头
+        function getAuthHeaders() {
+            const token = localStorage.getItem('admin_token');
+            return token ? { 'Authorization': `Basic ${token}` } : {};
+        }
+
+        // 生成报告
+        async function generateReport() {
+            const type = document.getElementById('reportType').value;
+            currentReportType = type;
+
+            let url = '';
+            if (type === 'weekly') {
+                const week = document.getElementById('weekSelect').value;
+                url = `${API_BASE}/api/report/weekly?week=${week}`;
+            } else if (type === 'monthly') {
+                const month = document.getElementById('monthSelect').value;
+                const [year, m] = month.split('-');
+                url = `${API_BASE}/api/report/monthly?year=${year}&month=${parseInt(m)}`;
+            } else {
+                url = `${API_BASE}/api/report/semester`;
+            }
+
+            // 显示加载状态
+            document.getElementById('reportContainer').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>正在生成报告...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    currentReportData = data.data;
+                    renderReport(data.data);
+
+                    // 显示导出按钮
+                    document.getElementById('exportBtn').style.display = 'inline-block';
+                    document.getElementById('previewBtn').style.display = 'inline-block';
+                } else {
+                    showError(data.message || '生成报告失败');
+                }
+            } catch (error) {
+                showError('网络错误，请检查服务器连接');
+                console.error('生成报告失败:', error);
+            }
+        }
+
+        // 渲染报告
+        function renderReport(data) {
+            const container = document.getElementById('reportContainer');
+
+            if (data.report_type === 'weekly') {
+                container.innerHTML = renderWeeklyReport(data);
+                initCharts(data);
+                bindClassroomToggle();
+            } else if (data.report_type === 'monthly') {
+                container.innerHTML = renderMonthlyReport(data);
+            } else {
+                container.innerHTML = renderSemesterReport(data);
+                initSemesterCharts(data);
+            }
+        }
+
+        // 渲染周报
+        function renderWeeklyReport(data) {
+            const overview = data.overview || {};
+            const vsLast = overview.vs_last_week || {};
+            const repairsByClassroom = data.repairs_by_classroom || {};
+            const comparison = data.week_comparison || {};
+            const advice = data.advice || [];
+
+            // 计算趋势
+            const totalChange = vsLast.total_change || 0;
+            const totalRate = vsLast.total_change_rate || 0;
+            const trendClass = totalChange > 0 ? 'up' : (totalChange < 0 ? 'down' : 'flat');
+            const trendArrow = totalChange > 0 ? '↑' : (totalChange < 0 ? '↓' : '-');
+
+            const rateChange = vsLast.rate_change || 0;
+            const rateClass = rateChange > 0 ? 'up' : (rateChange < 0 ? 'down' : 'flat');
+
+            // 教室明细
+            let classroomHtml = '';
+            for (const [classroom, info] of Object.entries(repairsByClassroom)) {
+                const count = info.count || 0;
+                const semesterTotal = info.semester_total || 0;
+                const isFrequent = info.is_frequent || false;
+                const frequentBadge = isFrequent ? '<span class="badge badge-warning">⚠️ 高频</span>' : '';
+
+                let rowsHtml = '';
+                (info.repairs || []).forEach(r => {
+                    const statusClass = ['已处理', '已解决'].includes(r.status) ? 'badge-success' : 'badge-warning';
+                    rowsHtml += `
+                        <tr>
+                            <td>${r.date || ''}</td>
+                            <td>${r.weekday || ''}</td>
+                            <td>${r.fault_type || ''}</td>
+                            <td>${r.fault_cause || ''}</td>
+                            <td><span class="badge ${statusClass}">${r.status || ''}</span></td>
+                            <td>${r.handler || ''}</td>
+                            <td>${r.reporter || ''}</td>
+                        </tr>
+                    `;
+                });
+
+                classroomHtml += `
+                    <div class="classroom-group">
+                        <div class="classroom-header" onclick="toggleClassroom(this)">
+                            <span>📍 ${classroom} <span class="count">本周${count}次</span></span>
+                            <span class="semester">学期累计${semesterTotal}次 ${frequentBadge}</span>
+                        </div>
+                        <div class="classroom-body">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>星期</th>
+                                        <th>故障类型</th>
+                                        <th>故障原因</th>
+                                        <th>状态</th>
+                                        <th>处理人</th>
+                                        <th>报修人</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 周对比表格
+            let comparisonRows = '';
+            (comparison.overview_table || []).forEach(item => {
+                const trend = item.trend || '-';
+                const trendCls = trend === '↑' ? 'trend-up' : (trend === '↓' ? 'trend-down' : 'trend-flat');
+                comparisonRows += `
+                    <tr>
+                        <td>${item.metric || ''}</td>
+                        <td>${item.this_week || ''}</td>
+                        <td>${item.last_week || ''}</td>
+                        <td>${item.change || ''}</td>
+                        <td class="${trendCls}">${trend}</td>
+                    </tr>
+                `;
+            });
+
+            // 故障类型对比
+            let faultComparisonRows = '';
+            (comparison.fault_type_comparison || []).forEach(item => {
+                const needAttention = item.need_attention ? '⚠️' : '';
+                faultComparisonRows += `
+                    <tr>
+                        <td>${item.type || ''}</td>
+                        <td>${item.this_week || ''}</td>
+                        <td>${item.last_week || ''}</td>
+                        <td>${item.change || ''}</td>
+                        <td>${item.trend || ''} ${needAttention}</td>
+                    </tr>
+                `;
+            });
+
+            // 楼栋对比
+            let buildingComparisonRows = '';
+            (comparison.building_comparison || []).forEach(item => {
+                const needAttention = item.need_attention ? '⚠️' : '';
+                buildingComparisonRows += `
+                    <tr>
+                        <td>${item.building || ''}</td>
+                        <td>${item.this_week || ''}</td>
+                        <td>${item.last_week || ''}</td>
+                        <td>${item.change || ''}</td>
+                        <td>${item.trend || ''} ${needAttention}</td>
+                    </tr>
+                `;
+            });
+
+            // 建议
+            let adviceHtml = '';
+            advice.forEach(item => {
+                const level = item.level || 'info';
+                const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
+                adviceHtml += `
+                    <div class="advice-item ${level}">
+                        <div class="title">${icons[level] || 'ℹ️'} ${item.title || ''}</div>
+                        <div class="content">${item.content || ''}</div>
+                        <div class="action">💡 ${item.action || ''}</div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div class="report-header">
+                    <h1>重庆移通学院綦江校区</h1>
+                    <h2>多媒体设备运维周报</h2>
+                    <div class="time">${data.date_range?.label || ''} | 生成时间：${new Date().toLocaleString()}</div>
+                </div>
+
+                <div class="report-content">
+                    <!-- 一、本周概览 -->
+                    <div class="section">
+                        <div class="section-title">一、本周概览</div>
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <div class="value">${overview.total_count || 0}</div>
+                                <div class="label">报修总量</div>
+                                <div class="change ${trendClass}">${trendArrow} ${Math.abs(totalChange)}件 (${totalRate}%)</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.resolved_count || 0}</div>
+                                <div class="label">已处理</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.pending_count || 0}</div>
+                                <div class="label">待处理</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.resolved_rate || 0}%</div>
+                                <div class="label">处理率</div>
+                                <div class="change ${rateClass}">较上周 ${rateChange > 0 ? '+' : ''}${rateChange}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 二、本周报修明细 -->
+                    <div class="section">
+                        <div class="section-title">二、本周报修明细</div>
+                        ${classroomHtml || '<p style="color:#999">本周暂无报修记录</p>'}
+                    </div>
+
+                    <!-- 三、周对比分析 -->
+                    <div class="section">
+                        <div class="section-title">三、周对比分析</div>
+
+                        <h4 style="margin-bottom: 12px;">3.1 整体对比</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>指标</th>
+                                    <th>本周</th>
+                                    <th>上周</th>
+                                    <th>变化</th>
+                                    <th>趋势</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${comparisonRows}
+                            </tbody>
+                        </table>
+
+                        <h4 style="margin: 24px 0 12px;">3.2 故障类型对比</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>故障类型</th>
+                                    <th>本周</th>
+                                    <th>上周</th>
+                                    <th>变化</th>
+                                    <th>趋势</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${faultComparisonRows}
+                            </tbody>
+                        </table>
+
+                        <h4 style="margin: 24px 0 12px;">3.3 楼栋对比</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>楼栋</th>
+                                    <th>本周</th>
+                                    <th>上周</th>
+                                    <th>变化</th>
+                                    <th>趋势</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${buildingComparisonRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 四、故障分析 -->
+                    <div class="section">
+                        <div class="section-title">四、故障分析</div>
+                        <div class="chart-container" id="faultChart"></div>
+                    </div>
+
+                    <!-- 五、区域分析 -->
+                    <div class="section">
+                        <div class="section-title">五、区域分析</div>
+                        <div class="chart-container" id="buildingChart"></div>
+                    </div>
+
+                    <!-- 六、时间分析 -->
+                    <div class="section">
+                        <div class="section-title">六、时间分析</div>
+                        <div class="chart-container" id="weekdayChart"></div>
+                    </div>
+
+                    <!-- 七、智能建议 -->
+                    <div class="section">
+                        <div class="section-title">七、智能建议</div>
+                        ${adviceHtml || '<p style="color:#999">暂无建议</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染月报（简化版）
+        function renderMonthlyReport(data) {
+            const overview = data.overview || {};
+            const advice = data.advice || [];
+
+            let adviceHtml = '';
+            advice.forEach(item => {
+                const level = item.level || 'info';
+                const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
+                adviceHtml += `
+                    <div class="advice-item ${level}">
+                        <div class="title">${icons[level] || 'ℹ️'} ${item.title || ''}</div>
+                        <div class="content">${item.content || ''}</div>
+                        <div class="action">💡 ${item.action || ''}</div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div class="report-header">
+                    <h1>重庆移通学院綦江校区</h1>
+                    <h2>多媒体设备运维月报</h2>
+                    <div class="time">${data.date_range?.label || ''} | 生成时间：${new Date().toLocaleString()}</div>
+                </div>
+
+                <div class="report-content">
+                    <div class="section">
+                        <div class="section-title">一、本月概览</div>
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <div class="value">${overview.total_count || 0}</div>
+                                <div class="label">报修总量</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.resolved_count || 0}</div>
+                                <div class="label">已处理</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.pending_count || 0}</div>
+                                <div class="label">待处理</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.resolved_rate || 0}%</div>
+                                <div class="label">处理率</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">二、智能建议</div>
+                        ${adviceHtml || '<p style="color:#999">暂无建议</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染学期报告
+        function renderSemesterReport(data) {
+            const overview = data.overview || {};
+            const advice = data.advice || [];
+
+            let adviceHtml = '';
+            advice.forEach(item => {
+                const level = item.level || 'info';
+                const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
+                adviceHtml += `
+                    <div class="advice-item ${level}">
+                        <div class="title">${icons[level] || 'ℹ️'} ${item.title || ''}</div>
+                        <div class="content">${item.content || ''}</div>
+                        <div class="action">💡 ${item.action || ''}</div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div class="report-header">
+                    <h1>重庆移通学院綦江校区</h1>
+                    <h2>多媒体设备运维学期报告</h2>
+                    <div class="time">${data.date_range?.label || ''} | 生成时间：${new Date().toLocaleString()}</div>
+                </div>
+
+                <div class="report-content">
+                    <div class="section">
+                        <div class="section-title">一、学期概览</div>
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <div class="value">${overview.total_count || 0}</div>
+                                <div class="label">报修总量</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.resolved_count || 0}</div>
+                                <div class="label">已处理</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.classroom_count || 0}</div>
+                                <div class="label">涉及教室</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${overview.building_count || 0}</div>
+                                <div class="label">涉及楼栋</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">二、周趋势</div>
+                        <div class="chart-container" id="trendChart"></div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">三、智能建议</div>
+                        ${adviceHtml || '<p style="color:#999">暂无建议</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 初始化图表
+        function initCharts(data) {
+            const fault = data.fault_analysis || {};
+            const area = data.area_analysis || {};
+            const timeAnalysis = data.time_analysis || {};
+
+            // 故障类型饼图
+            const faultChart = echarts.init(document.getElementById('faultChart'));
+            const typeDist = fault.type_distribution || {};
+            faultChart.setOption({
+                title: { text: '故障类型分布', left: 'center' },
+                tooltip: { trigger: 'item', formatter: '{b}: {c}件 ({d}%)' },
+                series: [{
+                    type: 'pie',
+                    radius: '60%',
+                    data: Object.entries(typeDist).map(([name, value]) => ({ name, value })),
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            });
+
+            // 楼栋柱状图
+            const buildingChart = echarts.init(document.getElementById('buildingChart'));
+            const buildingDist = area.building_distribution || {};
+            buildingChart.setOption({
+                title: { text: '楼栋报修分布', left: 'center' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: Object.keys(buildingDist) },
+                yAxis: { type: 'value', name: '数量' },
+                series: [{
+                    type: 'bar',
+                    data: Object.values(buildingDist),
+                    itemStyle: {
+                        color: '#667eea',
+                        borderRadius: [4, 4, 0, 0]
+                    }
+                }]
+            });
+
+            // 周几分布柱状图
+            const weekdayChart = echarts.init(document.getElementById('weekdayChart'));
+            const weekdayDist = timeAnalysis.weekday_distribution || {};
+            const weekdayOrder = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+            const weekdayData = weekdayOrder.map(d => weekdayDist[d] || 0);
+            weekdayChart.setOption({
+                title: { text: '周几报修分布', left: 'center' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: weekdayOrder },
+                yAxis: { type: 'value', name: '数量' },
+                series: [{
+                    type: 'bar',
+                    data: weekdayData,
+                    itemStyle: {
+                        color: '#764ba2',
+                        borderRadius: [4, 4, 0, 0]
+                    }
+                }]
+            });
+
+            // 响应式
+            window.addEventListener('resize', function () {
+                faultChart.resize();
+                buildingChart.resize();
+                weekdayChart.resize();
+            });
+        }
+
+        // 初始化学期报告图表
+        function initSemesterCharts(data) {
+            const weeklyStats = data.weekly_stats || {};
+            const weeks = Object.keys(weeklyStats);
+            const counts = Object.values(weeklyStats);
+
+            const trendChart = echarts.init(document.getElementById('trendChart'));
+            trendChart.setOption({
+                title: { text: '每周报修趋势', left: 'center' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 45 } },
+                yAxis: { type: 'value', name: '数量' },
+                series: [{
+                    type: 'line',
+                    data: counts,
+                    smooth: true,
+                    areaStyle: { opacity: 0.3 },
+                    itemStyle: { color: '#667eea' }
+                }]
+            });
+
+            window.addEventListener('resize', function () {
+                trendChart.resize();
+            });
+        }
+
+        // 切换教室明细展开/收起
+        function toggleClassroom(header) {
+            const body = header.nextElementSibling;
+            body.classList.toggle('expanded');
+        }
+
+        // 绑定教室明细展开/收起
+        function bindClassroomToggle() {
+            // 默认展开第一个
+            const firstBody = document.querySelector('.classroom-body');
+            if (firstBody) {
+                firstBody.classList.add('expanded');
+            }
+        }
+
+        // 导出 Excel
+        function exportExcel() {
+            const type = currentReportType;
+            let url = '';
+
+            if (type === 'weekly') {
+                const week = document.getElementById('weekSelect').value;
+                url = `${API_BASE}/api/report/export/excel?type=weekly&week=${week}`;
+            } else if (type === 'monthly') {
+                const month = document.getElementById('monthSelect').value;
+                const [year, m] = month.split('-');
+                url = `${API_BASE}/api/report/export/excel?type=monthly&year=${year}&month=${parseInt(m)}`;
+            } else {
+                url = `${API_BASE}/api/report/export/excel?type=semester`;
+            }
+
+            // 添加认证参数
+            const token = localStorage.getItem('admin_token');
+            if (token) {
+                url += `&token=${token}`;
+            }
+
+            window.open(url, '_blank');
+        }
+
+        // 打印预览
+        function previewReport() {
+            const type = currentReportType;
+            let url = '';
+
+            if (type === 'weekly') {
+                const week = document.getElementById('weekSelect').value;
+                url = `${API_BASE}/api/report/preview?type=weekly&week=${week}`;
+            } else if (type === 'monthly') {
+                const month = document.getElementById('monthSelect').value;
+                const [year, m] = month.split('-');
+                url = `${API_BASE}/api/report/preview?type=monthly&year=${year}&month=${parseInt(m)}`;
+            } else {
+                url = `${API_BASE}/api/report/preview?type=semester`;
+            }
+
+            window.open(url, '_blank');
+        }
+
+        // 显示错误
+        function showError(message) {
+            document.getElementById('reportContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">❌</div>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+
+</html>
