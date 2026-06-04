@@ -110,7 +110,7 @@ def api_student_login():
             return jsonify({'status': 'error', 'message': result['error']}), 401
 
         # 生成安全 token（HMAC签名 + 过期时间）
-        expire_time = int(time.time()) + 7 * 86400  # 7天过期
+        expire_time = int(time.time()) + 30 * 86400  # 30天过期
         payload = json.dumps({
             'sid': result['student_id'],
             'name': result['name'],
