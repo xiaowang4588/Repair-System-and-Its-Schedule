@@ -211,48 +211,70 @@ def get_excel_files() -> list:
 def upload_excel(file, year: str = '', semester: str = '') -> dict:
     """上传 Excel 文件"""
     import time as _time
+    from werkzeug.utils import secure_filename
 
     _ensure_dirs()
     excel_dir = os.path.join(UPLOADS_DIR, "excel")
     os.makedirs(excel_dir, exist_ok=True)
 
-    # Bug10 修复: 限制文件大小（最大 50MB）
+    # 限制文件大小（最大 50MB）
     MAX_SIZE = 50 * 1024 * 1024
-    file.seek(0, 2)  # 移到末尾
+    file.seek(0, 2)
     size = file.tell()
-    file.seek(0)  # 移回开头
+    file.seek(0)
     if size > MAX_SIZE:
         raise ValueError(f"文件大小 {size / 1024 / 1024:.1f}MB 超过限制 50MB")
 
-    # 生成文件名
-    filename = file.filename
+    # 安全过滤文件名（防路径穿越）
+    safe_name = secure_filename(file.filename)
+    if not safe_name:
+        safe_name = 'upload.xlsx'
+    # secure_filename 可能去掉中文，保留原扩展名
+    _, ext = os.path.splitext(file.filename)
+    if ext.lower() in ('.xlsx', '.xls'):
+        _, safe_ext = os.path.splitext(safe_name)
+        if safe_ext.lower() not in ('.xlsx', '.xls'):
+            safe_name = safe_name + ext
+
+    filename = safe_name
     if year and semester:
         name, ext = os.path.splitext(filename)
         filename = f"{year}-{semester}_{name}{ext}"
 
     filepath = os.path.join(excel_dir, filename)
 
-    # 保存文件
     file.save(filepath)
-
-    # Bug4 修复: 等待 Windows 释放文件锁（防病毒扫描等）
     _time.sleep(0.3)
 
-    # 设置为当前文件
     rel_path = os.path.relpath(filepath, BASE_DIR)
     set_current_excel(rel_path)
 
     return {'filename': filename, 'path': rel_path}
 
 
+def _validate_excel_path(file_path: str) -> str:
+    """
+    验证文件路径是否在 uploads/excel 目录内，防止路径穿越。
+    返回验证后的完整路径，失败抛出 ValueError。
+    """
+    excel_dir = os.path.join(UPLOADS_DIR, "excel")
+    # 用 realpath 解析 .. 和符号链接
+    full_path = os.path.realpath(os.path.join(BASE_DIR, file_path))
+    allowed_prefix = os.path.realpath(excel_dir)
+    if not full_path.startswith(allowed_prefix + os.sep) and full_path != allowed_prefix:
+        raise ValueError(f"路径不允许: {file_path}")
+    return full_path
+
+
 def switch_excel(file_path: str):
     """切换当前使用的 Excel 文件"""
+    _validate_excel_path(file_path)  # 验证路径合法性
     set_current_excel(file_path)
 
 
 def delete_excel(file_path: str):
     """删除 Excel 文件"""
-    full_path = os.path.join(BASE_DIR, file_path)
+    full_path = _validate_excel_path(file_path)  # 验证路径合法性
     if os.path.exists(full_path):
         os.remove(full_path)
 

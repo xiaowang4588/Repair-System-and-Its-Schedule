@@ -248,7 +248,9 @@
 </template>
 
 <script>
+import config from '../../config/index.js'
 import { request, post } from '../../api/index.js'
+const API_BASE = config.API_BASE
 
 export default {
     data() {
@@ -518,16 +520,28 @@ export default {
 
         // 编辑弹窗 - 上传图片
         uploadEditImage(filePath) {
+            const token = uni.getStorageSync('student_token')
+            const header = {}
+            if (token) header['Authorization'] = `Bearer ${token}`
             uni.uploadFile({
                 url: API_BASE + '/api/repair/upload-image',
                 filePath: filePath,
                 name: 'file',
+                header: header,
                 success: (res) => {
-                    if (res.statusCode === 200) {
-                        const data = JSON.parse(res.data)
-                        if (data.status === 'ok') {
-                            this.editForm.note_images.push(data.data.url)
+                    try {
+                        if (res.statusCode === 200) {
+                            const data = JSON.parse(res.data)
+                            if (data.status === 'ok') {
+                                this.editForm.note_images.push(data.data.url)
+                            } else {
+                                uni.showToast({ title: data.message || '上传失败', icon: 'none' })
+                            }
+                        } else {
+                            uni.showToast({ title: '上传失败(' + res.statusCode + ')', icon: 'none' })
                         }
+                    } catch (e) {
+                        uni.showToast({ title: '上传响应解析失败', icon: 'none' })
                     }
                 },
                 fail: () => {

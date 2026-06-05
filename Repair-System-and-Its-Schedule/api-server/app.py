@@ -60,7 +60,7 @@ from blueprints.guide_api import guide_bp, init_blueprint as init_guide
 # 初始化Blueprint依赖
 init_public(cache, admin_config)
 init_student(student_manager, repair_manager, app.secret_key)
-init_repair(repair_manager, admin_config, student_required, cache)
+init_repair(repair_manager, admin_config, student_required, cache, admin_required)
 init_admin(admin_config, cache, repair_manager, student_manager)
 init_report(admin_required)
 init_guide(student_required)

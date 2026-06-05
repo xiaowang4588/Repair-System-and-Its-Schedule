@@ -515,6 +515,12 @@
         // API 基础地址
         const API_BASE = '';
 
+        // XSS 转义函数
+        function esc(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
         // 当前报告数据
         let currentReportData = null;
         let currentReportType = 'weekly';
@@ -669,13 +675,13 @@
                     const statusClass = ['已处理', '已解决'].includes(r.status) ? 'badge-success' : 'badge-warning';
                     rowsHtml += `
                         <tr>
-                            <td>${r.date || ''}</td>
-                            <td>${r.weekday || ''}</td>
-                            <td>${r.fault_type || ''}</td>
-                            <td>${r.fault_cause || ''}</td>
-                            <td><span class="badge ${statusClass}">${r.status || ''}</span></td>
-                            <td>${r.handler || ''}</td>
-                            <td>${r.reporter || ''}</td>
+                            <td>${esc(r.date)}</td>
+                            <td>${esc(r.weekday)}</td>
+                            <td>${esc(r.fault_type)}</td>
+                            <td>${esc(r.fault_cause)}</td>
+                            <td><span class="badge ${statusClass}">${esc(r.status)}</span></td>
+                            <td>${esc(r.handler)}</td>
+                            <td>${esc(r.reporter)}</td>
                         </tr>
                     `;
                 });
@@ -683,8 +689,8 @@
                 classroomHtml += `
                     <div class="classroom-group">
                         <div class="classroom-header" onclick="toggleClassroom(this)">
-                            <span>📍 ${classroom} <span class="count">本周${count}次</span></span>
-                            <span class="semester">学期累计${semesterTotal}次 ${frequentBadge}</span>
+                            <span>📍 ${esc(classroom)} <span class="count">本周${esc(count)}次</span></span>
+                            <span class="semester">学期累计${esc(semesterTotal)}次 ${frequentBadge}</span>
                         </div>
                         <div class="classroom-body">
                             <table>
@@ -715,11 +721,11 @@
                 const trendCls = trend === '↑' ? 'trend-up' : (trend === '↓' ? 'trend-down' : 'trend-flat');
                 comparisonRows += `
                     <tr>
-                        <td>${item.metric || ''}</td>
-                        <td>${item.this_week || ''}</td>
-                        <td>${item.last_week || ''}</td>
-                        <td>${item.change || ''}</td>
-                        <td class="${trendCls}">${trend}</td>
+                        <td>${esc(item.metric)}</td>
+                        <td>${esc(item.this_week)}</td>
+                        <td>${esc(item.last_week)}</td>
+                        <td>${esc(item.change)}</td>
+                        <td class="${trendCls}">${esc(trend)}</td>
                     </tr>
                 `;
             });
@@ -730,11 +736,11 @@
                 const needAttention = item.need_attention ? '⚠️' : '';
                 faultComparisonRows += `
                     <tr>
-                        <td>${item.type || ''}</td>
-                        <td>${item.this_week || ''}</td>
-                        <td>${item.last_week || ''}</td>
-                        <td>${item.change || ''}</td>
-                        <td>${item.trend || ''} ${needAttention}</td>
+                        <td>${esc(item.type)}</td>
+                        <td>${esc(item.this_week)}</td>
+                        <td>${esc(item.last_week)}</td>
+                        <td>${esc(item.change)}</td>
+                        <td>${esc(item.trend)} ${needAttention}</td>
                     </tr>
                 `;
             });
@@ -745,11 +751,11 @@
                 const needAttention = item.need_attention ? '⚠️' : '';
                 buildingComparisonRows += `
                     <tr>
-                        <td>${item.building || ''}</td>
-                        <td>${item.this_week || ''}</td>
-                        <td>${item.last_week || ''}</td>
-                        <td>${item.change || ''}</td>
-                        <td>${item.trend || ''} ${needAttention}</td>
+                        <td>${esc(item.building)}</td>
+                        <td>${esc(item.this_week)}</td>
+                        <td>${esc(item.last_week)}</td>
+                        <td>${esc(item.change)}</td>
+                        <td>${esc(item.trend)} ${needAttention}</td>
                     </tr>
                 `;
             });
@@ -760,10 +766,10 @@
                 const level = item.level || 'info';
                 const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
                 adviceHtml += `
-                    <div class="advice-item ${level}">
-                        <div class="title">${icons[level] || 'ℹ️'} ${item.title || ''}</div>
-                        <div class="content">${item.content || ''}</div>
-                        <div class="action">💡 ${item.action || ''}</div>
+                    <div class="advice-item ${esc(level)}">
+                        <div class="title">${icons[level] || 'ℹ️'} ${esc(item.title)}</div>
+                        <div class="content">${esc(item.content)}</div>
+                        <div class="action">💡 ${esc(item.action)}</div>
                     </div>
                 `;
             });
@@ -772,7 +778,7 @@
                 <div class="report-header">
                     <h1>重庆移通学院綦江校区</h1>
                     <h2>多媒体设备运维周报</h2>
-                    <div class="time">${data.date_range?.label || ''} | 生成时间：${new Date().toLocaleString()}</div>
+                    <div class="time">${esc(data.date_range?.label)} | 生成时间：${new Date().toLocaleString()}</div>
                 </div>
 
                 <div class="report-content">
@@ -781,22 +787,22 @@
                         <div class="section-title">一、本周概览</div>
                         <div class="kpi-grid">
                             <div class="kpi-card">
-                                <div class="value">${overview.total_count || 0}</div>
+                                <div class="value">${esc(overview.total_count || 0)}</div>
                                 <div class="label">报修总量</div>
-                                <div class="change ${trendClass}">${trendArrow} ${Math.abs(totalChange)}件 (${totalRate}%)</div>
+                                <div class="change ${trendClass}">${trendArrow} ${esc(Math.abs(totalChange))}件 (${esc(totalRate)}%)</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.resolved_count || 0}</div>
+                                <div class="value">${esc(overview.resolved_count || 0)}</div>
                                 <div class="label">已处理</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.pending_count || 0}</div>
+                                <div class="value">${esc(overview.pending_count || 0)}</div>
                                 <div class="label">待处理</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.resolved_rate || 0}%</div>
+                                <div class="value">${esc(overview.resolved_rate || 0)}%</div>
                                 <div class="label">处理率</div>
-                                <div class="change ${rateClass}">较上周 ${rateChange > 0 ? '+' : ''}${rateChange}%</div>
+                                <div class="change ${rateClass}">较上周 ${rateChange > 0 ? '+' : ''}${esc(rateChange)}%</div>
                             </div>
                         </div>
                     </div>
@@ -897,10 +903,10 @@
                 const level = item.level || 'info';
                 const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
                 adviceHtml += `
-                    <div class="advice-item ${level}">
-                        <div class="title">${icons[level] || 'ℹ️'} ${item.title || ''}</div>
-                        <div class="content">${item.content || ''}</div>
-                        <div class="action">💡 ${item.action || ''}</div>
+                    <div class="advice-item ${esc(level)}">
+                        <div class="title">${icons[level] || 'ℹ️'} ${esc(item.title)}</div>
+                        <div class="content">${esc(item.content)}</div>
+                        <div class="action">💡 ${esc(item.action)}</div>
                     </div>
                 `;
             });
@@ -909,7 +915,7 @@
                 <div class="report-header">
                     <h1>重庆移通学院綦江校区</h1>
                     <h2>多媒体设备运维月报</h2>
-                    <div class="time">${data.date_range?.label || ''} | 生成时间：${new Date().toLocaleString()}</div>
+                    <div class="time">${esc(data.date_range?.label)} | 生成时间：${new Date().toLocaleString()}</div>
                 </div>
 
                 <div class="report-content">
@@ -917,19 +923,19 @@
                         <div class="section-title">一、本月概览</div>
                         <div class="kpi-grid">
                             <div class="kpi-card">
-                                <div class="value">${overview.total_count || 0}</div>
+                                <div class="value">${esc(overview.total_count || 0)}</div>
                                 <div class="label">报修总量</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.resolved_count || 0}</div>
+                                <div class="value">${esc(overview.resolved_count || 0)}</div>
                                 <div class="label">已处理</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.pending_count || 0}</div>
+                                <div class="value">${esc(overview.pending_count || 0)}</div>
                                 <div class="label">待处理</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.resolved_rate || 0}%</div>
+                                <div class="value">${esc(overview.resolved_rate || 0)}%</div>
                                 <div class="label">处理率</div>
                             </div>
                         </div>
@@ -953,10 +959,10 @@
                 const level = item.level || 'info';
                 const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
                 adviceHtml += `
-                    <div class="advice-item ${level}">
-                        <div class="title">${icons[level] || 'ℹ️'} ${item.title || ''}</div>
-                        <div class="content">${item.content || ''}</div>
-                        <div class="action">💡 ${item.action || ''}</div>
+                    <div class="advice-item ${esc(level)}">
+                        <div class="title">${icons[level] || 'ℹ️'} ${esc(item.title)}</div>
+                        <div class="content">${esc(item.content)}</div>
+                        <div class="action">💡 ${esc(item.action)}</div>
                     </div>
                 `;
             });
@@ -965,7 +971,7 @@
                 <div class="report-header">
                     <h1>重庆移通学院綦江校区</h1>
                     <h2>多媒体设备运维学期报告</h2>
-                    <div class="time">${data.date_range?.label || ''} | 生成时间：${new Date().toLocaleString()}</div>
+                    <div class="time">${esc(data.date_range?.label)} | 生成时间：${new Date().toLocaleString()}</div>
                 </div>
 
                 <div class="report-content">
@@ -973,19 +979,19 @@
                         <div class="section-title">一、学期概览</div>
                         <div class="kpi-grid">
                             <div class="kpi-card">
-                                <div class="value">${overview.total_count || 0}</div>
+                                <div class="value">${esc(overview.total_count || 0)}</div>
                                 <div class="label">报修总量</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.resolved_count || 0}</div>
+                                <div class="value">${esc(overview.resolved_count || 0)}</div>
                                 <div class="label">已处理</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.classroom_count || 0}</div>
+                                <div class="value">${esc(overview.classroom_count || 0)}</div>
                                 <div class="label">涉及教室</div>
                             </div>
                             <div class="kpi-card">
-                                <div class="value">${overview.building_count || 0}</div>
+                                <div class="value">${esc(overview.building_count || 0)}</div>
                                 <div class="label">涉及楼栋</div>
                             </div>
                         </div>
@@ -1166,7 +1172,7 @@
             document.getElementById('reportContainer').innerHTML = `
                 <div class="empty-state">
                     <div class="icon">❌</div>
-                    <p>${message}</p>
+                    <p>${esc(message)}</p>
                 </div>
             `;
         }

@@ -4,6 +4,7 @@
 """
 from flask import Blueprint, request, jsonify, send_file
 from datetime import datetime
+from functools import wraps
 import logging
 import os
 
@@ -16,17 +17,30 @@ repair_bp = Blueprint('repair', __name__)
 repair_manager = None
 admin_config = None
 student_required = None
+admin_required = None
 _cache = None
 
 
-def init_blueprint(repair_mgr, admin_cfg, student_req_decorator=None, cache=None):
+def init_blueprint(repair_mgr, admin_cfg, student_req_decorator=None, cache=None, admin_req_decorator=None):
     """初始化Blueprint的依赖"""
-    global repair_manager, admin_config, student_required, _cache
+    global repair_manager, admin_config, student_required, admin_required, _cache
     repair_manager = repair_mgr
     admin_config = admin_cfg
     _cache = cache
     if student_req_decorator:
         student_required = student_req_decorator
+    if admin_req_decorator:
+        admin_required = admin_req_decorator
+
+
+def _admin_required(f):
+    """懒加载装饰器：需要管理员权限"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if admin_required:
+            return admin_required(f)(*args, **kwargs)
+        return f(*args, **kwargs)
+    return decorated
 
 
 @repair_bp.route('/api/repair/auto-fill', methods=['GET'])
@@ -157,6 +171,7 @@ def api_repair_create():
 
 
 @repair_bp.route('/api/repair/update', methods=['POST'])
+@_admin_required
 def api_repair_update():
     """更新报修记录"""
     try:
@@ -175,6 +190,7 @@ def api_repair_update():
 
 
 @repair_bp.route('/api/repair/delete', methods=['POST'])
+@_admin_required
 def api_repair_delete():
     """删除报修记录"""
     try:
@@ -193,6 +209,7 @@ def api_repair_delete():
 
 
 @repair_bp.route('/api/repair/batch-update-status', methods=['POST'])
+@_admin_required
 def api_repair_batch_update_status():
     """批量更新处理状态"""
     try:
@@ -210,6 +227,7 @@ def api_repair_batch_update_status():
 
 
 @repair_bp.route('/api/repair/batch-update-handler', methods=['POST'])
+@_admin_required
 def api_repair_batch_update_handler():
     """批量分配处理人"""
     try:
@@ -227,6 +245,7 @@ def api_repair_batch_update_handler():
 
 
 @repair_bp.route('/api/repair/batch-delete', methods=['POST'])
+@_admin_required
 def api_repair_batch_delete():
     """批量删除"""
     try:
@@ -376,6 +395,7 @@ def api_repair_export():
 
 
 @repair_bp.route('/api/repair/import', methods=['POST'])
+@_admin_required
 def api_repair_import():
     """导入报修记录"""
     try:
