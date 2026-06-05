@@ -25,7 +25,9 @@ init_db()
 # 创建 Flask 应用
 app = Flask(__name__)
 CORS(app)
-app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24).hex())
+# 固定 secret_key：不设置环境变量时用固定值，避免重启后 token 全部失效
+_DEFAULT_SECRET = 'repair-system-secret-key-2026'
+app.secret_key = os.environ.get('SECRET_KEY', _DEFAULT_SECRET)
 
 # 获取项目根目录（course_query目录）
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

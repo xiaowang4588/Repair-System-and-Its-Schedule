@@ -154,7 +154,7 @@ export default {
             uni.navigateTo({ url: '/pages/repair/list' })
         },
 
-        // 加载防坑指南统计
+        // 加载防坑指南统计（失败不影响主流程）
         async loadGuideStats() {
             try {
                 const res = await getGuideStats()
@@ -165,7 +165,8 @@ export default {
                     }
                 }
             } catch (e) {
-                console.error('获取防坑指南统计失败:', e)
+                // 静默失败，不提示，不影响页面正常使用
+                console.warn('获取防坑指南统计失败（可忽略）:', e)
             }
         },
 

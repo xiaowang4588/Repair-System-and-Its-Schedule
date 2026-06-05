@@ -877,19 +877,29 @@ def api_guide_my_favorites():
 
 
 @guide_bp.route('/api/guide/stats', methods=['GET'])
-@student_required
 def api_guide_stats():
-    """获取个人防坑指南统计"""
+    """获取个人防坑指南统计（可选认证，token无效时返回空数据而非401）"""
     try:
         from models import GuidePost, GuideFavorite
 
+        # 尝试从 token 获取学生 ID，失败则从参数获取
+        student_id = _get_optional_student_id()
+        if not student_id:
+            student_id = request.args.get('student_id', '').strip()
+
+        if not student_id:
+            return jsonify({
+                'status': 'ok',
+                'data': {'post_count': 0, 'favorite_count': 0}
+            })
+
         post_count = GuidePost.select().where(
-            (GuidePost.student_id == request.student_id) &
+            (GuidePost.student_id == student_id) &
             (GuidePost.is_deleted == False)
         ).count()
 
         favorite_count = GuideFavorite.select().where(
-            GuideFavorite.student_id == request.student_id
+            GuideFavorite.student_id == student_id
         ).count()
 
         return jsonify({

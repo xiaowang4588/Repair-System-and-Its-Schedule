@@ -336,10 +336,11 @@ export function getMyGuideFavorites(params) {
 }
 
 /**
- * 获取防坑指南个人统计
+ * 获取防坑指南个人统计（可选认证，token失效时用student_id降级）
  */
 export function getGuideStats() {
-    return request('/api/guide/stats')
+    const studentId = uni.getStorageSync('student_id') || ''
+    return request('/api/guide/stats', { student_id: studentId })
 }
 
 /**
