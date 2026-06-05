@@ -336,11 +336,37 @@ export function getMyGuideFavorites(params) {
 }
 
 /**
- * 获取防坑指南个人统计（可选认证，token失效时用student_id降级）
+ * 获取防坑指南个人统计
+ * 注意：此接口不走全局 401 处理，因为有 student_id 参数兜底，
+ * 即使 token 失效（如服务器重启密钥变化）也不会触发强制登出。
  */
 export function getGuideStats() {
     const studentId = uni.getStorageSync('student_id') || ''
-    return request('/api/guide/stats', { student_id: studentId })
+    const token = uni.getStorageSync('student_token')
+    const header = { 'Content-Type': 'application/json' }
+    if (token) header['Authorization'] = `Bearer ${token}`
+
+    const qs = `student_id=${encodeURIComponent(studentId)}`
+    const fullUrl = `${BASE_URL}/api/guide/stats?${qs}`
+
+    return new Promise((resolve) => {
+        uni.request({
+            url: fullUrl,
+            method: 'GET',
+            header: header,
+            success: (res) => {
+                if (res.statusCode === 200) {
+                    resolve(res.data)
+                } else {
+                    // 不触发 handle401，静默降级返回空数据
+                    resolve({ status: 'ok', data: { post_count: 0, favorite_count: 0 } })
+                }
+            },
+            fail: () => {
+                resolve({ status: 'ok', data: { post_count: 0, favorite_count: 0 } })
+            }
+        })
+    })
 }
 
 /**

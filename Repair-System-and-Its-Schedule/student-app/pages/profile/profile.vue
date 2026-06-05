@@ -127,10 +127,10 @@ export default {
     methods: {
         // 获取学生信息和报修统计
         async loadStudentInfo() {
-            try {
-                const studentId = uni.getStorageSync('student_id') || ''
+            const studentId = uni.getStorageSync('student_id') || ''
 
-                // 获取个人统计
+            // 获取个人统计（/api/student/info 不需要 @student_required，有 student_id 兜底）
+            try {
                 const res = await request('/api/student/info', { student_id: studentId })
                 if (res && res.status === 'ok' && res.data) {
                     this.studentInfo = res.data
@@ -138,14 +138,18 @@ export default {
                         this.stats = res.data.stats
                     }
                 }
+            } catch (e) {
+                console.warn('获取学生信息失败:', e)
+            }
 
-                // 获取团队总报修量
+            // 获取团队总报修量（公开接口，不需要认证）
+            try {
                 const statsRes = await request('/api/repair/stats')
                 if (statsRes && statsRes.status === 'ok' && statsRes.data) {
                     this.teamTotal = statsRes.data.total_count || 0
                 }
             } catch (e) {
-                console.error('获取学生信息失败:', e)
+                console.warn('获取报修统计失败:', e)
             }
         },
 
