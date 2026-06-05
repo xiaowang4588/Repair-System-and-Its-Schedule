@@ -89,7 +89,7 @@
 
 <script>
 import config from '../../config/index.js'
-import { getGuideStats } from '../../api/index.js'
+import { request, post, getGuideStats } from '../../api/index.js'
 const API_BASE = config.API_BASE
 
 export default {
@@ -131,7 +131,7 @@ export default {
                 const studentId = uni.getStorageSync('student_id') || ''
 
                 // 获取个人统计
-                const res = await this.apiGet('/api/student/info', { student_id: studentId })
+                const res = await request('/api/student/info', { student_id: studentId })
                 if (res && res.status === 'ok' && res.data) {
                     this.studentInfo = res.data
                     if (res.data.stats) {
@@ -140,7 +140,7 @@ export default {
                 }
 
                 // 获取团队总报修量
-                const statsRes = await this.apiGet('/api/repair/stats')
+                const statsRes = await request('/api/repair/stats')
                 if (statsRes && statsRes.status === 'ok' && statsRes.data) {
                     this.teamTotal = statsRes.data.total_count || 0
                 }
@@ -196,7 +196,7 @@ export default {
             uni.showLoading({ title: '提交中...' })
             try {
                 const studentId = uni.getStorageSync('student_id') || ''
-                const res = await this.apiPost('/api/student/change-password', {
+                const res = await post('/api/student/change-password', {
                     student_id: studentId,
                     old_password: this.pwdForm.old_password,
                     new_password: this.pwdForm.new_password
@@ -231,47 +231,6 @@ export default {
             })
         },
 
-        // 通用GET请求
-        apiGet(url, params = {}) {
-            return new Promise((resolve, reject) => {
-                const query = Object.keys(params)
-                    .filter(k => params[k] !== undefined && params[k] !== '')
-                    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
-                    .join('&')
-                const fullUrl = query ? `${API_BASE}${url}?${query}` : `${API_BASE}${url}`
-                uni.request({
-                    url: fullUrl,
-                    method: 'GET',
-                    header: { 'Content-Type': 'application/json' },
-                    success: (res) => {
-                        resolve(res.statusCode === 200 ? res.data : null)
-                    },
-                    fail: (err) => {
-                        console.error('请求失败:', err)
-                        reject(err)
-                    }
-                })
-            })
-        },
-
-        // 通用POST请求
-        apiPost(url, data = {}) {
-            return new Promise((resolve, reject) => {
-                uni.request({
-                    url: API_BASE + url,
-                    method: 'POST',
-                    data: data,
-                    header: { 'Content-Type': 'application/json' },
-                    success: (res) => {
-                        resolve(res.statusCode === 200 ? res.data : null)
-                    },
-                    fail: (err) => {
-                        console.error('请求失败:', err)
-                        reject(new Error('网络请求失败'))
-                    }
-                })
-            })
-        }
     }
 }
 </script>
