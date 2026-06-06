@@ -1990,6 +1990,13 @@
                                 <button class="btn btn-success" id="uploadBtn" onclick="uploadFile()" style="width:100%"><i data-lucide="upload" style="width:16px;height:16px"></i> 上传并使用</button>
                             </div>
                         </div>
+                        <!-- 上传进度条 -->
+                        <div id="uploadProgress" style="display:none;margin-top:16px;">
+                            <div style="background:#e8ecef;border-radius:8px;height:8px;overflow:hidden;">
+                                <div id="uploadProgressBar" style="background:#5BBF8A;height:100%;width:0%;transition:width 0.3s;border-radius:8px;"></div>
+                            </div>
+                            <div id="uploadProgressText" style="font-size:12px;color:#636e72;margin-top:6px;text-align:center;">准备上传...</div>
+                        </div>
                     </div>
 
                     <div class="card">
@@ -4368,18 +4375,87 @@
             }
         }
 
-        async function uploadFile() {
+        function uploadFile() {
             if (!selectedFile) { showMsg('excelMsg', '请先选择文件', 'error'); return; }
+
+            const btn = document.getElementById('uploadBtn');
+            const progressWrap = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('uploadProgressBar');
+            const progressText = document.getElementById('uploadProgressText');
+
+            // 禁用按钮 + 显示进度
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            btn.textContent = '上传中...';
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.style.background = '#5BBF8A';
+            progressText.textContent = '准备上传...';
+
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('year', document.getElementById('uploadYear').value);
             formData.append('semester', document.getElementById('uploadSemester').value);
-            try {
-                const resp = await fetch(API_BASE + '/admin/excel/upload', { method: 'POST', headers: { 'Authorization': 'Basic ' + authToken }, body: formData });
-                const data = await resp.json();
-                showMsg('excelMsg', data.message, data.status === 'ok' ? 'success' : 'error');
-                if (data.status === 'ok') { selectedFile = null; document.getElementById('uploadText').textContent = '点击选择课表文件'; document.getElementById('uploadForm').classList.add('hidden'); document.getElementById('uploadBtn').classList.add('hidden'); loadExcelList(); }
-            } catch (e) { showMsg('excelMsg', '上传失败', 'error'); }
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = pct + '%';
+                    progressText.textContent = '上传中 ' + pct + '%';
+                }
+            };
+
+            xhr.upload.onload = function() {
+                progressBar.style.width = '100%';
+                progressText.textContent = '上传完成，正在处理...';
+            };
+
+            xhr.onload = function() {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.textContent = '上传并使用';
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.status === 'ok') {
+                        progressText.textContent = '上传成功！';
+                        showMsg('excelMsg', data.message, 'success');
+                        selectedFile = null;
+                        document.getElementById('uploadText').textContent = '点击选择课表文件';
+                        setTimeout(() => { progressWrap.style.display = 'none'; loadExcelList(); }, 1200);
+                    } else if (data.status === 'warning') {
+                        progressBar.style.background = '#FDCB6E';
+                        progressText.textContent = '已上传，加载有异常';
+                        showMsg('excelMsg', data.message, 'warning');
+                        setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+                    } else {
+                        progressBar.style.background = '#E17055';
+                        progressText.textContent = '失败：' + (data.message || '未知错误');
+                        showMsg('excelMsg', data.message || '上传失败', 'error');
+                        setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+                    }
+                } catch (e) {
+                    progressBar.style.background = '#E17055';
+                    progressText.textContent = '服务器响应异常';
+                    showMsg('excelMsg', '上传失败', 'error');
+                    setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+                }
+            };
+
+            xhr.onerror = function() {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.textContent = '上传并使用';
+                progressBar.style.background = '#E17055';
+                progressText.textContent = '网络错误';
+                showMsg('excelMsg', '网络错误，请检查服务器连接', 'error');
+                setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+            };
+
+            xhr.open('POST', API_BASE + '/admin/excel/upload');
+            xhr.setRequestHeader('Authorization', 'Basic ' + authToken);
+            xhr.send(formData);
         }
 
         async function loadExcelList() {
