@@ -20,8 +20,13 @@ _config_lock = threading.Lock()
 # 内存缓存配置，避免每次读磁盘
 _cached_config = None
 
-# 默认密码从环境变量读取，如果未设置则生成随机密码
-DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', secrets.token_urlsafe(12))
+# 管理员密码从 .env 文件读取，如果未设置则生成随机密码并在终端打印
+_default_pwd = os.environ.get('ADMIN_PASSWORD', '').strip()
+if not _default_pwd:
+    _default_pwd = secrets.token_urlsafe(12)
+    print(f"[WARN] ADMIN_PASSWORD not configured. Generated random password: {_default_pwd}")
+    print(f"       Set ADMIN_PASSWORD in .env file to use a fixed password.")
+DEFAULT_ADMIN_PASSWORD = _default_pwd
 
 # 默认配置
 DEFAULT_CONFIG = {

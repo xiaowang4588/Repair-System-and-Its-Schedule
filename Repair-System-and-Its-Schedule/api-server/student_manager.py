@@ -11,8 +11,11 @@ from models import Student
 
 logger = logging.getLogger(__name__)
 
-# 默认密码从环境变量读取，如果未设置则使用随机密码
-DEFAULT_PASSWORD = os.environ.get('STUDENT_DEFAULT_PASSWORD', '123456')
+# 默认密码从 .env 文件读取，如果未设置则使用 '123456' 并警告
+DEFAULT_PASSWORD = os.environ.get('STUDENT_DEFAULT_PASSWORD', '')
+if not DEFAULT_PASSWORD:
+    DEFAULT_PASSWORD = '123456'
+    logger.warning("[WARN] STUDENT_DEFAULT_PASSWORD not configured, using default '123456'. Set in .env file.")
 
 
 def _hash_password(password: str, salt: str = '') -> str:
