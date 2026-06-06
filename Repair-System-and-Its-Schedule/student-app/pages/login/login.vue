@@ -1,39 +1,54 @@
 <template>
     <view class="page">
-        <view class="login-container">
-            <view class="login-header">
-                <view class="logo-circle">
-                    <view class="logo-shield">
-                        <view class="shield-inner"></view>
+        <view class="container">
+            <!-- Logo 区域 -->
+            <view class="logo-area">
+                <view class="logo-outer">
+                    <view class="logo-inner">
+                        <view class="shield">
+                            <view class="shield-body"></view>
+                            <view class="shield-check"></view>
+                        </view>
                     </view>
                 </view>
-                <text class="login-title">多媒体报修系统</text>
-                <text class="login-subtitle">重庆移通学院綦江校区</text>
+                <text class="app-name">报修系统</text>
+                <text class="app-sub">重庆移通学院綦江校区</text>
             </view>
 
-            <view class="login-form">
-                <view class="form-group">
-                    <text class="form-label">学号</text>
-                    <input class="form-input" v-model="studentId" placeholder="请输入学号"
-                           @confirm="focusPassword" />
-                </view>
-                <view class="form-group">
-                    <text class="form-label">密码</text>
-                    <view class="input-wrap">
-                        <input class="form-input" v-model="password" placeholder="请输入密码"
-                               :password="!showPassword" ref="passwordInput" />
-                        <text class="toggle-text" @click="showPassword = !showPassword">
-                            {{ showPassword ? '隐藏' : '显示' }}
-                        </text>
+            <!-- 表单区域 - 双层嵌套卡片 -->
+            <view class="form-outer">
+                <view class="form-inner">
+                    <view class="input-group">
+                        <text class="input-label">学号</text>
+                        <view class="input-shell">
+                            <input class="input-field" v-model="studentId"
+                                   placeholder="请输入学号" @confirm="focusPassword" />
+                        </view>
+                    </view>
+
+                    <view class="input-group">
+                        <text class="input-label">密码</text>
+                        <view class="input-shell">
+                            <input class="input-field" v-model="password"
+                                   placeholder="请输入密码" :password="!showPassword"
+                                   ref="passwordInput" />
+                            <view class="eye-btn" @click="showPassword = !showPassword">
+                                <view class="eye-icon" :class="{ closed: !showPassword }">
+                                    <view class="eye-ball"></view>
+                                </view>
+                            </view>
+                        </view>
+                    </view>
+
+                    <view class="btn-outer" @click="login">
+                        <view class="btn-inner" :class="{ loading: loading }">
+                            <text class="btn-text">{{ loading ? '验证中...' : '登 录' }}</text>
+                        </view>
                     </view>
                 </view>
-
-                <button class="login-btn" @click="login" :disabled="loading">
-                    {{ loading ? '登录中...' : '登 录' }}
-                </button>
             </view>
 
-            <text class="footer-text">设备报修 · 课表查询 · 空教室</text>
+            <text class="footer-hint">设备报修 · 课表查询 · 空教室</text>
         </view>
     </view>
 </template>
@@ -85,72 +100,102 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F6F8;
+    background: #F2F3F5;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.login-container { width: 90%; max-width: 640rpx; }
+.container { width: 90%; max-width: 680rpx; }
 
-.login-header { text-align: center; margin-bottom: 72rpx; }
-
-.logo-circle {
-    width: 120rpx; height: 120rpx; border-radius: 50%;
-    background: #E8F2E9;
+/* Logo */
+.logo-area { text-align: center; margin-bottom: 80rpx; }
+.logo-outer {
+    width: 128rpx; height: 128rpx; border-radius: 36rpx;
+    background: rgba(0,0,0,0.03);
+    border: 1rpx solid rgba(0,0,0,0.04);
+    padding: 8rpx; display: inline-flex;
+    margin-bottom: 32rpx;
+}
+.logo-inner {
+    width: 100%; height: 100%; border-radius: 28rpx;
+    background: #fff;
+    box-shadow: inset 0 1rpx 1rpx rgba(255,255,255,0.8), 0 2rpx 8rpx rgba(0,0,0,0.04);
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 28rpx;
 }
-.logo-shield {
-    width: 44rpx; height: 50rpx;
-    border: 4rpx solid #3D5A3E;
+.shield { width: 44rpx; height: 52rpx; position: relative; }
+.shield-body {
+    width: 100%; height: 100%;
+    border: 3rpx solid #1A1D1F;
     border-radius: 6rpx 6rpx 22rpx 22rpx;
-    position: relative;
 }
-.shield-inner {
-    position: absolute; bottom: 8rpx; left: 50%; transform: translateX(-50%);
-    width: 14rpx; height: 14rpx;
-    border: 3rpx solid #3D5A3E;
-    border-radius: 50%;
+.shield-check {
+    position: absolute; bottom: 12rpx; left: 50%; transform: translateX(-50%);
+    width: 16rpx; height: 10rpx;
+    border-left: 3rpx solid #1A1D1F;
+    border-bottom: 3rpx solid #1A1D1F;
+    transform: translateX(-50%) rotate(-45deg);
 }
+.app-name { font-size: 44rpx; font-weight: 800; color: #1A1D1F; display: block; letter-spacing: 2rpx; }
+.app-sub { font-size: 22rpx; color: #9CA3AF; display: block; margin-top: 10rpx; letter-spacing: 1rpx; }
 
-.login-title {
-    font-size: 40rpx; font-weight: 700; color: #1A1D1F;
-    display: block; margin-bottom: 10rpx; letter-spacing: 1rpx;
+/* 双层嵌套表单卡片 */
+.form-outer {
+    background: rgba(0,0,0,0.025);
+    border: 1rpx solid rgba(0,0,0,0.04);
+    border-radius: 32rpx;
+    padding: 10rpx;
 }
-.login-subtitle { font-size: 24rpx; color: #9CA3AF; display: block; }
-
-.login-form {
-    background: #fff; border-radius: 28rpx;
+.form-inner {
+    background: #fff;
+    border-radius: 24rpx;
     padding: 40rpx 36rpx;
-    box-shadow: 0 1rpx 3rpx rgba(0,0,0,0.04), 0 12rpx 40rpx rgba(0,0,0,0.04);
-}
-.form-group { margin-bottom: 28rpx; }
-.form-label { font-size: 24rpx; color: #6B7280; font-weight: 600; margin-bottom: 12rpx; display: block; letter-spacing: 0.5rpx; }
-.input-wrap { position: relative; }
-.form-input {
-    width: 100%; height: 92rpx; padding: 0 28rpx;
-    border: 2rpx solid #E5E7EB; border-radius: 16rpx;
-    font-size: 28rpx; color: #1A1D1F; background: #FAFBFC;
-    box-sizing: border-box;
-}
-.form-input:focus { border-color: #3D5A3E; background: #fff; }
-.toggle-text {
-    position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%);
-    font-size: 24rpx; color: #3D5A3E; font-weight: 500;
+    box-shadow: inset 0 1rpx 1rpx rgba(255,255,255,0.8), 0 4rpx 16rpx rgba(0,0,0,0.03);
 }
 
-.login-btn {
-    width: 100%; height: 96rpx;
-    background: #3D5A3E; color: white;
-    font-size: 30rpx; font-weight: 600;
-    border: none; border-radius: 16rpx;
-    margin-top: 12rpx; letter-spacing: 4rpx;
+.input-group { margin-bottom: 32rpx; }
+.input-label { font-size: 22rpx; color: #6B7280; font-weight: 600; margin-bottom: 12rpx; display: block; letter-spacing: 1rpx; text-transform: uppercase; }
+.input-shell {
+    background: #F8F9FA;
+    border: 1rpx solid rgba(0,0,0,0.06);
+    border-radius: 16rpx;
+    display: flex; align-items: center;
+    padding-right: 16rpx;
 }
-.login-btn:active { background: #2D4A2E; }
-.login-btn:disabled { opacity: 0.5; }
+.input-field {
+    flex: 1; height: 88rpx; padding: 0 24rpx;
+    font-size: 28rpx; color: #1A1D1F;
+    background: transparent; border: none;
+}
+.eye-btn { padding: 12rpx; }
+.eye-icon {
+    width: 36rpx; height: 24rpx;
+    border: 2rpx solid #9CA3AF; border-radius: 12rpx;
+    position: relative; display: flex; align-items: center; justify-content: center;
+}
+.eye-ball { width: 10rpx; height: 10rpx; border-radius: 50%; background: #9CA3AF; }
+.eye-icon.closed { border-color: #D1D5DB; }
+.eye-icon.closed .eye-ball { background: #D1D5DB; width: 2rpx; height: 2rpx; border-radius: 1rpx; }
 
-.footer-text {
+/* 按钮 - 双层嵌套 */
+.btn-outer {
+    background: rgba(0,0,0,0.04);
+    border: 1rpx solid rgba(0,0,0,0.06);
+    border-radius: 20rpx;
+    padding: 8rpx;
+    margin-top: 12rpx;
+}
+.btn-inner {
+    background: #1A1D1F;
+    border-radius: 14rpx;
+    height: 88rpx; display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 1rpx 1rpx rgba(255,255,255,0.05), 0 4rpx 12rpx rgba(0,0,0,0.15);
+}
+.btn-inner:active { background: #2D2F31; }
+.btn-inner.loading { opacity: 0.6; }
+.btn-text { color: #fff; font-size: 28rpx; font-weight: 600; letter-spacing: 4rpx; }
+
+.footer-hint {
     display: block; text-align: center; margin-top: 48rpx;
-    font-size: 22rpx; color: #9CA3AF; letter-spacing: 1rpx;
+    font-size: 20rpx; color: #B0B5BA; letter-spacing: 2rpx;
 }
 </style>
