@@ -94,9 +94,8 @@ def api_repair_nearby_rooms():
 
 
 @repair_bp.route('/api/repair/list', methods=['GET'])
-@_student_required
 def api_repair_list():
-    """获取报修记录列表（需要登录，支持多条件筛选和分页）"""
+    """获取报修记录列表（教师端+学生端共用，支持多条件筛选和分页）"""
     try:
         params = {
             'status': request.args.get('status', 'all'),
