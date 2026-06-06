@@ -32,17 +32,14 @@ def report_auth_required(f):
     def decorated(*args, **kwargs):
         from flask import request as req
 
-        # 如果请求中有 token 参数，尝试验证
+        # 如果请求中有 token 参数，尝试验证（HMAC Token）
         token = req.args.get('token', '')
         if token and not req.headers.get('Authorization'):
-            # 手动验证 token
             try:
-                import base64
-                import admin_config
-                decoded = base64.b64decode(token).decode('utf-8')
-                username, password = decoded.split(':', 1)
-                if admin_config.verify_admin(username, password):
-                    # 验证通过，直接调用函数
+                from flask import current_app
+                from utils.token_utils import verify_admin_token
+                result = verify_admin_token(token, current_app.secret_key)
+                if result.get('valid'):
                     return f(*args, **kwargs)
             except Exception:
                 pass
@@ -58,13 +55,13 @@ def report_auth_required(f):
 def api_report_weekly():
     """获取周报数据"""
     try:
-        from report_analyzer import analyzer
-        from report_advisor import advisor
+        from services.report.analyzer import analyzer
+        from services.report.advisor import advisor
 
         week_number = request.args.get('week', 0, type=int)
 
         if not week_number:
-            from admin_config import get_current_week
+            from services.admin_config import get_current_week
             week_number = get_current_week()
 
         if week_number <= 0:
@@ -97,8 +94,8 @@ def api_report_weekly():
 def api_report_monthly():
     """获取月报数据"""
     try:
-        from report_analyzer import analyzer
-        from report_advisor import advisor
+        from services.report.analyzer import analyzer
+        from services.report.advisor import advisor
 
         year = request.args.get('year', datetime.now().year, type=int)
         month = request.args.get('month', datetime.now().month, type=int)
@@ -130,8 +127,8 @@ def api_report_monthly():
 def api_report_semester():
     """获取学期报告数据"""
     try:
-        from report_analyzer import analyzer
-        from report_advisor import advisor
+        from services.report.analyzer import analyzer
+        from services.report.advisor import advisor
 
         semester = request.args.get('semester', '')
 
@@ -162,9 +159,9 @@ def api_report_semester():
 def api_report_preview():
     """预览报告（返回 HTML）"""
     try:
-        from report_analyzer import analyzer
-        from report_advisor import advisor
-        from report_html_template import generate_html_report
+        from services.report.analyzer import analyzer
+        from services.report.advisor import advisor
+        from services.report.html_template import generate_html_report
 
         report_type = request.args.get('type', 'weekly')
         week_number = request.args.get('week', 0, type=int)
@@ -175,7 +172,7 @@ def api_report_preview():
         # 执行分析
         if report_type == 'weekly':
             if not week_number:
-                from admin_config import get_current_week
+                from services.admin_config import get_current_week
                 week_number = get_current_week()
             analysis = analyzer.analyze('weekly', week_number=week_number)
         elif report_type == 'monthly':
@@ -204,9 +201,9 @@ def api_report_preview():
 def api_report_export_excel():
     """导出 Excel 报告"""
     try:
-        from report_analyzer import analyzer
-        from report_advisor import advisor
-        from report_renderer import renderer
+        from services.report.analyzer import analyzer
+        from services.report.advisor import advisor
+        from services.report.renderer import renderer
 
         report_type = request.args.get('type', 'weekly')
         week_number = request.args.get('week', 0, type=int)
@@ -217,7 +214,7 @@ def api_report_export_excel():
         # 执行分析
         if report_type == 'weekly':
             if not week_number:
-                from admin_config import get_current_week
+                from services.admin_config import get_current_week
                 week_number = get_current_week()
             analysis = analyzer.analyze('weekly', week_number=week_number)
         elif report_type == 'monthly':
@@ -256,9 +253,9 @@ def api_report_export_excel():
 def api_report_export_word():
     """导出 Word 报告"""
     try:
-        from report_analyzer import analyzer
-        from report_advisor import advisor
-        from report_renderer import renderer
+        from services.report.analyzer import analyzer
+        from services.report.advisor import advisor
+        from services.report.renderer import renderer
 
         report_type = request.args.get('type', 'weekly')
         week_number = request.args.get('week', 0, type=int)
@@ -269,7 +266,7 @@ def api_report_export_word():
         # 执行分析
         if report_type == 'weekly':
             if not week_number:
-                from admin_config import get_current_week
+                from services.admin_config import get_current_week
                 week_number = get_current_week()
             analysis = analyzer.analyze('weekly', week_number=week_number)
         elif report_type == 'monthly':
@@ -308,7 +305,7 @@ def api_report_export_word():
 def api_report_weeks():
     """获取可用的周次列表"""
     try:
-        from admin_config import get_current_week, get_semester_config
+        from services.admin_config import get_current_week, get_semester_config
 
         current_week = get_current_week()
         semester_config = get_semester_config()

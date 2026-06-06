@@ -11,11 +11,12 @@ from models import Student
 
 logger = logging.getLogger(__name__)
 
-# 默认密码从 .env 文件读取，如果未设置则使用 '123456' 并警告
-DEFAULT_PASSWORD = os.environ.get('STUDENT_DEFAULT_PASSWORD', '')
+# 默认密码从 .env 文件读取，未设置则自动生成随机密码
+DEFAULT_PASSWORD = os.environ.get('STUDENT_DEFAULT_PASSWORD', '').strip()
 if not DEFAULT_PASSWORD:
-    DEFAULT_PASSWORD = '123456'
-    logger.warning("[WARN] STUDENT_DEFAULT_PASSWORD not configured, using default '123456'. Set in .env file.")
+    DEFAULT_PASSWORD = secrets.token_urlsafe(12)
+    logger.warning("[WARN] STUDENT_DEFAULT_PASSWORD not set in .env! Generated random default: %s", DEFAULT_PASSWORD)
+    logger.warning("[WARN] Please set STUDENT_DEFAULT_PASSWORD in .env file to use a fixed password.")
 
 
 def _hash_password(password: str, salt: str = '') -> str:
@@ -163,7 +164,7 @@ def admin_reset_password(student_id: str, new_password: str = '') -> dict:
     student.password_hash = _hash_password(pwd)
     student.save()
     logger.info(f"管理员重置密码: {student_id}")
-    return {'success': True, 'message': f'密码已重置为 {pwd}'}
+    return {'success': True, 'message': '密码已重置，请通知学生使用新密码登录后立即修改'}
 
 
 def delete_student(student_id: str) -> dict:

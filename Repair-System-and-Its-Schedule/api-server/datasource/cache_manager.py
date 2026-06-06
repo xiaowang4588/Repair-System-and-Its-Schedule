@@ -10,7 +10,7 @@ from typing import Optional
 import pandas as pd
 
 import config
-from empty_classroom_query import create_query_system
+from datasource.empty_classroom_query import create_query_system
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +180,7 @@ class CacheManager:
         with self._lock:
             # 先尝试创建新数据源
             try:
-                from data_source import create_data_source
+                from datasource.data_source import create_data_source
                 new_source = create_data_source()
             except Exception as e:
                 logger.warning(f"重新创建数据源失败: {e}")

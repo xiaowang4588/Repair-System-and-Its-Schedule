@@ -18,7 +18,7 @@ import time
 import logging
 import pandas as pd
 import requests
-from data_source import DataSource
+from datasource.data_source import DataSource
 import config
 
 if sys.platform == 'win32':
@@ -26,8 +26,8 @@ if sys.platform == 'win32':
 
 logger = logging.getLogger(__name__)
 
-# 常量
-API_BASE_URL = "https://http-10-252-6-31-80.vpn.cqytxy.edu.cn"
+# 常量（从 config 读取，支持 .env 配置）
+API_BASE_URL = config.QINGGUO_BASE_URL  # 不再硬编码，由 .env 的 QINGGUO_BASE_URL 控制
 API_PATH = "/jwglxt/cdjy/cdjy_cxSfkfyuy.html"
 API_PARAMS = {"gnmkdm": "N2155"}
 LOGIN_PATH = "/jwglxt/xtgl/login_slogin.html"
@@ -49,6 +49,10 @@ class QingguoSession:
         self.webvpn_token = webvpn_token
         self._manual_jsessionid = jsessionid
 
+        # 从 base_url 提取域名，用于设置 cookie
+        from urllib.parse import urlparse
+        self._cookie_domain = urlparse(self.base_url).hostname or ''
+
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
@@ -60,7 +64,7 @@ class QingguoSession:
         # 设置 VPN 令牌
         if webvpn_token:
             self.session.cookies.set('webvpn-token', webvpn_token,
-                                     domain='http-10-252-6-31-80.vpn.cqytxy.edu.cn')
+                                     domain=self._cookie_domain)
 
         self._logged_in = False
         self._last_login_time = 0
@@ -78,7 +82,7 @@ class QingguoSession:
         if self.webvpn_token:
             if self._manual_jsessionid:
                 self.session.cookies.set('JSESSIONID', self._manual_jsessionid,
-                                         domain='http-10-252-6-31-80.vpn.cqytxy.edu.cn')
+                                         domain=self._cookie_domain)
             return True
 
         return False

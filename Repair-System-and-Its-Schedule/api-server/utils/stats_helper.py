@@ -45,7 +45,7 @@ def trend_data(records: list, range_type: str) -> dict:
             trend[d] = len([r for r in records if r.get('report_time', '').startswith(d)])
     else:
         # 按教学周聚合
-        import admin_config
+        import services.admin_config as admin_config
         semester_config = admin_config.get_semester_config()
         start_date_str = semester_config.get('start_date', '')
         current_week = admin_config.get_current_week()

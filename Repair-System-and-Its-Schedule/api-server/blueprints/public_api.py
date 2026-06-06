@@ -3,8 +3,11 @@
 包含学生端和教师端共用的接口
 """
 from flask import Blueprint, request, jsonify
+import base64
+import json
 import re
 import logging
+from functools import wraps
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +17,68 @@ public_bp = Blueprint('public', __name__)
 # 这些变量会在注册时从app传入
 cache = None
 admin_config = None
+_admin_required = None
+_student_required = None
 
 
-def init_blueprint(cache_manager, admin_config_module):
+def init_blueprint(cache_manager, admin_config_module, admin_req=None, student_req=None):
     """初始化Blueprint的依赖"""
-    global cache, admin_config
+    global cache, admin_config, _admin_required, _student_required
     cache = cache_manager
     admin_config = admin_config_module
+    _admin_required = admin_req
+    _student_required = student_req
+
+
+def _login_required(f):
+    """懒加载装饰器：需要登录（管理员或学生均可）"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.headers.get('Authorization', '')
+        if not auth.startswith('Bearer '):
+            return jsonify({'status': 'error', 'message': '未登录'}), 401
+
+        token = auth[7:]
+        try:
+            payload_b64 = token.split('.', 1)[0]
+            pad_len = (4 - len(payload_b64) % 4) % 4
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64 + '=' * pad_len))
+
+            if payload.get('role') == 'admin':
+                if _admin_required:
+                    return _admin_required(f)(*args, **kwargs)
+            else:
+                if _student_required:
+                    return _student_required(f)(*args, **kwargs)
+        except Exception:
+            if _student_required:
+                return _student_required(f)(*args, **kwargs)
+
+        return jsonify({'status': 'error', 'message': '认证失败'}), 401
+    return decorated
+
+
+@public_bp.route('/api/config', methods=['GET'])
+def api_config():
+    """
+    获取客户端配置（学生端启动时调用）
+    学生端根据此接口动态获取 API 地址，无需在前端硬编码服务器 IP。
+    换服务器时只需修改 .env 中的 API_BASE_URL，学生端自动生效，无需重新构建。
+    """
+    import os
+    # API_BASE_URL: 客户端访问后端的完整地址
+    # 优先从 .env 读取，未设置则返回空（学生端将使用当前页面地址）
+    api_base = os.environ.get('API_BASE_URL', '').strip()
+    return jsonify({
+        'status': 'ok',
+        'data': {
+            'api_base_url': api_base,
+        }
+    })
 
 
 @public_bp.route('/api/time', methods=['GET'])
+@_login_required
 def api_time():
     """获取当前时间和节次信息"""
     from utils.time_helper import get_auto_time_info
@@ -31,6 +86,7 @@ def api_time():
 
 
 @public_bp.route('/api/current-week', methods=['GET'])
+@_login_required
 def api_current_week():
     """获取当前教学周（根据学期开始日期自动计算）"""
     try:
@@ -48,6 +104,7 @@ def api_current_week():
 
 
 @public_bp.route('/api/query', methods=['GET'])
+@_login_required
 def api_query():
     """
     按条件查询课程
@@ -121,6 +178,7 @@ def _query_by_keyword(filter_col: str, keyword: str, error_msg: str):
 
 
 @public_bp.route('/api/query/course', methods=['GET'])
+@_login_required
 def api_query_course():
     """按课程名称查询"""
     try:
@@ -130,6 +188,7 @@ def api_query_course():
 
 
 @public_bp.route('/api/query/teacher', methods=['GET'])
+@_login_required
 def api_query_teacher():
     """按教师姓名查询"""
     try:
@@ -139,6 +198,7 @@ def api_query_teacher():
 
 
 @public_bp.route('/api/query/weekly', methods=['GET'])
+@_login_required
 def api_query_weekly():
     """
     获取一周课表
@@ -196,9 +256,10 @@ def api_query_weekly():
 
 
 @public_bp.route('/api/empty-rooms', methods=['GET'])
+@_login_required
 def api_empty_rooms():
     """查询空教室"""
-    from empty_classroom_query import create_query_system, ClassroomType
+    from datasource.empty_classroom_query import create_query_system, ClassroomType
     from utils.time_helper import get_auto_time_info
     try:
         weekday = request.args.get('weekday', '').strip()
@@ -229,7 +290,7 @@ def api_empty_rooms():
             'special': ClassroomType.SPECIAL
         }
 
-        from empty_classroom_query import QueryCondition
+        from datasource.empty_classroom_query import QueryCondition
         condition = QueryCondition(
             weekday=int(weekday),
             sections=sections,
@@ -259,6 +320,7 @@ def api_empty_rooms():
 
 
 @public_bp.route('/api/buildings', methods=['GET'])
+@_login_required
 def api_buildings():
     """获取所有楼栋列表"""
     try:
@@ -274,6 +336,7 @@ def api_buildings():
 
 
 @public_bp.route('/api/stats', methods=['GET'])
+@_login_required
 def api_stats():
     """获取统计数据"""
     try:
@@ -290,6 +353,7 @@ def api_stats():
 
 
 @public_bp.route('/api/building-usage', methods=['GET'])
+@_login_required
 def api_building_usage():
     """各楼栋各楼层教室实时使用情况"""
     from utils.time_helper import get_auto_time_info

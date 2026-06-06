@@ -84,14 +84,14 @@ def create_data_source() -> DataSource:
     工厂函数：根据 config.json 创建对应的数据源。
     优先读取 config.json，不存在则读取环境变量。
     """
-    import admin_config
+    import services.admin_config as admin_config
     import config
 
     ds_config = admin_config.get_datasource_config()
     ds_type = ds_config.get('type', 'excel')
 
     if ds_type == 'api':
-        from api_adapter import QingguoDataSource
+        from datasource.api_adapter import QingguoDataSource
         api_conf = ds_config.get('api', {})
         return QingguoDataSource(
             base_url=api_conf.get('base_url', '') or config.QINGGUO_BASE_URL,

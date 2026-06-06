@@ -41,7 +41,7 @@ class ReportAnalyzer:
 
     def _analyze_weekly(self, week_number: int) -> dict:
         """周报分析 - 领导视角"""
-        import admin_config
+        import services.admin_config as admin_config
 
         semester_config = admin_config.get_semester_config()
         start_date_str = semester_config.get('start_date', '')
@@ -826,7 +826,7 @@ class ReportAnalyzer:
 
     def _analyze_semester(self, semester: str = '') -> dict:
         """学期报告分析"""
-        import admin_config
+        import services.admin_config as admin_config
 
         semester_config = admin_config.get_semester_config()
         start_date_str = semester_config.get('start_date', '')

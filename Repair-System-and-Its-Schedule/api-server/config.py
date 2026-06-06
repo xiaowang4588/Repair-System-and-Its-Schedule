@@ -73,3 +73,18 @@ SCRAPER_HEADLESS = os.environ.get("SCRAPER_HEADLESS", "true").lower() == "true"
 CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "1800"))  # 默认30分钟
 CACHE_BACKGROUND_REFRESH = os.environ.get("CACHE_BACKGROUND_REFRESH", "true").lower() == "true"
 CACHE_FALLBACK_TO_STALE = os.environ.get("CACHE_FALLBACK_TO_STALE", "true").lower() == "true"
+
+# ============================================================
+# 客户端 API 地址（学生端自动获取，无需在前端硬编码）
+# ============================================================
+# 设置后，学生端启动时会自动获取此地址作为 API 基础 URL
+# 格式: https://your-domain.com 或 http://IP:端口
+# 留空则学生端使用当前页面地址（适用于同域部署）
+API_BASE_URL = os.environ.get("API_BASE_URL", "")
+
+# ============================================================
+# HTTPS / SSL 配置
+# ============================================================
+# 设置证书路径后自动启用 HTTPS（开发环境留空则使用 HTTP）
+SSL_CERTFILE = os.environ.get("SSL_CERTFILE", "")  # 如: /path/to/cert.pem
+SSL_KEYFILE = os.environ.get("SSL_KEYFILE", "")    # 如: /path/to/key.pem

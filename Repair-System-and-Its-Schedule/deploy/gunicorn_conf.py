@@ -14,7 +14,16 @@ user = 'www'
 worker_class = 'sync'
 
 # 绑定的ip与端口
-bind = '0.0.0.0:5000' 
+# 生产环境绑定 127.0.0.1，仅允许 Nginx 反向代理访问（不要暴露到公网）
+# 开发环境可改为 0.0.0.0:5000
+bind = '127.0.0.1:5000'
+
+# ============================================================
+# SSL 证书（不推荐直接由 Gunicorn 提供 SSL）
+# 生产环境请使用 Nginx 反向代理 + SSL（参见 deploy/nginx.conf）
+# ============================================================
+# certfile = '/path/to/cert.pem'
+# keyfile = '/path/to/key.pem'
 
 # 设置进程文件目录（用于停止服务和重启服务，请勿删除）
 pidfile = '/www/wwwroot/course_query/gunicorn.pid'

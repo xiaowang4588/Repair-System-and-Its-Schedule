@@ -53,9 +53,48 @@ def _student_required(f):
     return decorated
 
 
+def _login_required(f):
+    """懒加载装饰器：需要登录（管理员或学生均可）"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        from flask import request as req
+        auth = req.headers.get('Authorization', '')
+
+        if not auth.startswith('Bearer '):
+            return jsonify({'status': 'error', 'message': '未登录'}), 401
+
+        token = auth[7:]
+
+        # 通过 payload 中的 role 字段判断是管理员还是学生 token
+        try:
+            import base64, json
+            payload_b64 = token.split('.', 1)[0]
+            pad_len = (4 - len(payload_b64) % 4) % 4
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64 + '=' * pad_len))
+
+            if payload.get('role') == 'admin':
+                # 管理员 token
+                if admin_required:
+                    return admin_required(f)(*args, **kwargs)
+                return f(*args, **kwargs)
+            else:
+                # 学生 token
+                if student_required:
+                    return student_required(f)(*args, **kwargs)
+                return f(*args, **kwargs)
+        except Exception:
+            # payload 解析失败，尝试学生验证
+            if student_required:
+                return student_required(f)(*args, **kwargs)
+            return jsonify({'status': 'error', 'message': '认证失败'}), 401
+
+    return decorated
+
+
 @repair_bp.route('/api/repair/auto-fill', methods=['GET'])
+@_login_required
 def api_repair_auto_fill():
-    """根据教室自动填充报修信息"""
+    """根据教室自动填充报修信息（需要登录）"""
     try:
         classroom = request.args.get('classroom', '').strip()
         weekday = request.args.get('weekday', '').strip()
@@ -71,8 +110,9 @@ def api_repair_auto_fill():
 
 
 @repair_bp.route('/api/repair/nearby-rooms', methods=['GET'])
+@_login_required
 def api_repair_nearby_rooms():
-    """获取同楼栋空教室推荐"""
+    """获取同楼栋空教室推荐（需要登录）"""
     try:
         classroom = request.args.get('classroom', '').strip()
         weekday = request.args.get('weekday', '0').strip()
@@ -94,6 +134,7 @@ def api_repair_nearby_rooms():
 
 
 @repair_bp.route('/api/repair/list', methods=['GET'])
+@_login_required
 def api_repair_list():
     """获取报修记录列表（教师端+学生端共用，支持多条件筛选和分页）"""
     try:
@@ -154,8 +195,9 @@ def api_repair_my_list():
 
 
 @repair_bp.route('/api/repair/filter-options', methods=['GET'])
+@_admin_required
 def api_repair_filter_options():
-    """获取所有筛选选项"""
+    """获取所有筛选选项（需要管理员登录）"""
     try:
         options = repair_manager.get_filter_options()
         return jsonify({'status': 'ok', 'data': options})
@@ -273,8 +315,9 @@ def api_repair_batch_delete():
 
 
 @repair_bp.route('/api/repair/stats', methods=['GET'])
+@_login_required
 def api_repair_stats():
-    """获取报修统计数据"""
+    """获取报修统计数据（需要登录）"""
     try:
         stats = repair_manager.get_repair_stats()
         return jsonify({'status': 'ok', 'data': stats})
@@ -445,8 +488,9 @@ def api_repair_import():
 
 
 @repair_bp.route('/api/repair/import-template', methods=['GET'])
+@_login_required
 def api_repair_import_template():
-    """下载导入模板"""
+    """下载导入模板（需要登录）"""
     try:
         buffer = repair_manager.get_import_template_path()
 
@@ -461,8 +505,9 @@ def api_repair_import_template():
 
 
 @repair_bp.route('/api/repair/semesters', methods=['GET'])
+@_login_required
 def api_repair_semesters():
-    """获取学期列表"""
+    """获取学期列表（需要登录）"""
     try:
         semesters = repair_manager.get_semester_list()
         return jsonify({'status': 'ok', 'data': semesters})

@@ -2,8 +2,20 @@
  * 报修表填写助手 - API 服务层
  * 封装所有后端 API 调用
  */
-import config from '../config/index.js'
-const BASE_URL = config.API_BASE
+import config, { initConfig } from '../config/index.js'
+
+// 配置初始化状态
+let _configReady = null
+
+/**
+ * 确保配置已初始化（首次请求时自动调用，后续请求直接跳过）
+ */
+function ensureConfig() {
+    if (!_configReady) {
+        _configReady = initConfig().catch(() => {})
+    }
+    return _configReady
+}
 
 /**
  * 获取认证头
@@ -84,7 +96,8 @@ function handle401(requestUrl) {
  */
 function doRequest(url, method, data, resolve, reject) {
     const isGet = method === 'GET'
-    let fullUrl = BASE_URL + url
+    // 使用动态 getter，确保读取到初始化后的值
+    let fullUrl = config.API_BASE + url
 
     if (isGet && data && Object.keys(data).length > 0) {
         const qs = Object.keys(data)
@@ -136,9 +149,9 @@ function doRequest(url, method, data, resolve, reject) {
  * @returns {Promise}
  */
 export function request(url, params = {}) {
-    return new Promise((resolve, reject) => {
+    return ensureConfig().then(() => new Promise((resolve, reject) => {
         doRequest(url, 'GET', params, resolve, reject)
-    })
+    }))
 }
 
 /**
@@ -148,9 +161,9 @@ export function request(url, params = {}) {
  * @returns {Promise}
  */
 export function post(url, data = {}) {
-    return new Promise((resolve, reject) => {
+    return ensureConfig().then(() => new Promise((resolve, reject) => {
         doRequest(url, 'POST', data, resolve, reject)
-    })
+    }))
 }
 
 /**
@@ -343,13 +356,14 @@ export function getMyGuideFavorites(params) {
  * 即使 token 失效（如服务器重启密钥变化）也不会触发强制登出。
  */
 export function getGuideStats() {
+    ensureConfig()
     const studentId = uni.getStorageSync('student_id') || ''
     const token = uni.getStorageSync('student_token')
     const header = { 'Content-Type': 'application/json' }
     if (token) header['Authorization'] = `Bearer ${token}`
 
     const qs = `student_id=${encodeURIComponent(studentId)}`
-    const fullUrl = `${BASE_URL}/api/guide/stats?${qs}`
+    const fullUrl = `${config.API_BASE}/api/guide/stats?${qs}`
 
     return new Promise((resolve) => {
         uni.request({
@@ -377,7 +391,7 @@ export function getGuideStats() {
  * @returns {Promise}
  */
 export function uploadGuideVideo(filePath) {
-    return new Promise((resolve, reject) => {
+    return ensureConfig().then(() => new Promise((resolve, reject) => {
         // 注意：uni.uploadFile 不能设置 Content-Type: application/json
         // 否则会覆盖 multipart/form-data 的 boundary，导致服务器收不到文件
         const token = uni.getStorageSync('student_token')
@@ -402,5 +416,5 @@ export function uploadGuideVideo(filePath) {
                 reject(err)
             }
         })
-    })
+    }))
 }

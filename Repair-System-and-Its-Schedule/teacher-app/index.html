@@ -2507,7 +2507,7 @@
         // ============================================================
         async function api(url, options = {}) {
             const headers = { ...options.headers };
-            if (authToken) headers['Authorization'] = 'Basic ' + authToken;
+            if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
             if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
                 headers['Content-Type'] = 'application/json';
                 options.body = JSON.stringify(options.body);
@@ -3510,15 +3510,15 @@
                     // 报修类型
                     const typeSelect = document.getElementById('filterFaultType');
                     typeSelect.innerHTML = '<option value="">全部类型</option>';
-                    (opts.fault_types || []).forEach(t => { typeSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+                    (opts.fault_types || []).forEach(t => { typeSelect.innerHTML += `<option value="${esc(t)}">${esc(t)}</option>`; });
                     // 学院
                     const colSelect = document.getElementById('filterCollege');
                     colSelect.innerHTML = '<option value="">全部学院</option>';
-                    (opts.colleges || []).forEach(c => { colSelect.innerHTML += `<option value="${c}">${c}</option>`; });
+                    (opts.colleges || []).forEach(c => { colSelect.innerHTML += `<option value="${esc(c)}">${esc(c)}</option>`; });
                     // 周次
                     const weekSelect = document.getElementById('filterWeek');
                     weekSelect.innerHTML = '<option value="">全部周次</option>';
-                    (opts.weeks || []).forEach(w => { weekSelect.innerHTML += `<option value="${w}">第${w}周</option>`; });
+                    (opts.weeks || []).forEach(w => { weekSelect.innerHTML += `<option value="${esc(w)}">第${esc(w)}周</option>`; });
                 } else {
                     console.warn('加载筛选选项失败:', optRes.message);
                 }
@@ -3932,7 +3932,7 @@
 
             try {
                 const resp = await fetch(url, {
-                    headers: { 'Authorization': 'Basic ' + authToken }
+                    headers: { 'Authorization': 'Bearer ' + authToken }
                 });
 
                 if (!resp.ok) {
@@ -3994,7 +3994,7 @@
             try {
                 const resp = await fetch(API_BASE + '/api/repair/import', {
                     method: 'POST',
-                    headers: { 'Authorization': 'Basic ' + authToken },
+                    headers: { 'Authorization': 'Bearer ' + authToken },
                     body: formData
                 });
                 const data = await resp.json();
@@ -4078,7 +4078,7 @@
         async function downloadTemplate() {
             try {
                 const resp = await fetch(`${API_BASE}/api/repair/import-template`, {
-                    headers: { 'Authorization': 'Basic ' + authToken }
+                    headers: { 'Authorization': 'Bearer ' + authToken }
                 });
 
                 if (!resp.ok) {
@@ -4457,7 +4457,7 @@
             };
 
             xhr.open('POST', API_BASE + '/admin/excel/upload');
-            xhr.setRequestHeader('Authorization', 'Basic ' + authToken);
+            xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
             xhr.send(formData);
         }
 
@@ -4648,7 +4648,7 @@
             const totalB = Object.values(byBuilding).reduce((s, b) => s + (b.count || 0), 0);
             Object.entries(byBuilding).forEach(([b, info]) => {
                 const ratio = totalB > 0 ? ((info.count / totalB) * 100).toFixed(1) : 0;
-                const ft = Object.entries(info.fault_types || {}).map(([k, v]) => `${k}(${v})`).join('、');
+                const ft = Object.entries(info.fault_types || {}).map(([k, v]) => `${esc(k)}(${v})`).join('、');
                 buildingRows += `<tr><td style="font-weight:600">${esc(b)}</td><td style="text-align:center">${info.count}</td><td style="text-align:center">${ratio}%</td><td>${ft}</td></tr>`;
             });
 
@@ -4657,7 +4657,7 @@
             const totalF = Object.values(byFault).reduce((s, f) => s + (f.count || 0), 0);
             Object.entries(byFault).forEach(([ft, info]) => {
                 const ratio = totalF > 0 ? ((info.count / totalF) * 100).toFixed(1) : 0;
-                const buildings = Object.entries(info.buildings || {}).map(([k, v]) => `${k}(${v})`).join('、');
+                const buildings = Object.entries(info.buildings || {}).map(([k, v]) => `${esc(k)}(${v})`).join('、');
                 faultRows += `<tr><td style="font-weight:600">${esc(ft)}</td><td style="text-align:center">${info.count}</td><td style="text-align:center">${ratio}%</td><td>${buildings}</td></tr>`;
             });
 

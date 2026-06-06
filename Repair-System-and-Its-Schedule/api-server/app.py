@@ -20,7 +20,7 @@ import config as _config  # config.py 会自动加载 .env 文件到 os.environ
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-from log_manager import init_log_handler
+from utils.log_manager import init_log_handler
 init_log_handler()
 
 from models import init_db
@@ -54,8 +54,20 @@ CORS(app, origins=origins, supports_credentials=True)
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    # Content-Security-Policy: 限制资源加载来源，防止 XSS
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'self'"
+    )
+    # HSTS: 强制浏览器使用 HTTPS（仅在生产环境启用，开发环境跳过）
+    if not app.debug:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     # 不暴露服务器信息
     response.headers.pop('Server', None)
     return response
@@ -126,11 +138,11 @@ app.secret_key = _secret
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 初始化数据缓存
-from data_source import create_data_source
-from cache_manager import CacheManager
-import admin_config
-import student_manager
-import repair_manager
+from datasource.data_source import create_data_source
+from datasource.cache_manager import CacheManager
+import services.admin_config as admin_config
+import services.student_manager as student_manager
+import services.repair_manager as repair_manager
 
 # 同步管理员密码（.env → config.json）
 admin_config.sync_admin_password()
@@ -158,7 +170,7 @@ try:
     logger.info(f"数据源初始化完成: {data_source.get_source_name()}")
 except Exception as e:
     logger.warning(f"数据源初始化失败: {e}，系统将在首次上传课表后可用")
-    from data_source import ExcelDataSource
+    from datasource.data_source import ExcelDataSource
     data_source = ExcelDataSource("", "Sheet1")
     cache = CacheManager(data_source=data_source)
 
@@ -171,10 +183,10 @@ from blueprints.report_api import report_bp, init_blueprint as init_report
 from blueprints.guide_api import guide_bp, init_blueprint as init_guide
 
 # 初始化Blueprint依赖
-init_public(cache, admin_config)
+init_public(cache, admin_config, admin_req=admin_required, student_req=student_required)
 init_student(student_manager, repair_manager, app.secret_key)
 init_repair(repair_manager, admin_config, student_required, cache, admin_required)
-init_admin(admin_config, cache, repair_manager, student_manager)
+init_admin(admin_config, cache, repair_manager, student_manager, secret_key=app.secret_key)
 init_report(admin_required)
 init_guide(student_required)
 
@@ -224,8 +236,21 @@ def uploaded_video(filename):
 
 # 启动服务
 if __name__ == '__main__':
+    import config as _cfg
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
     if debug:
         logger.warning("[WARN] Flask debug mode is ON. Disable in production!")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+
+    # SSL / HTTPS 支持
+    ssl_context = None
+    if _cfg.SSL_CERTFILE and _cfg.SSL_KEYFILE:
+        if os.path.exists(_cfg.SSL_CERTFILE) and os.path.exists(_cfg.SSL_KEYFILE):
+            ssl_context = (_cfg.SSL_CERTFILE, _cfg.SSL_KEYFILE)
+            logger.info("[STARTUP] HTTPS enabled with SSL certificates")
+        else:
+            logger.warning("[STARTUP] SSL cert/key files not found, falling back to HTTP")
+    else:
+        logger.info("[STARTUP] Running in HTTP mode. Set SSL_CERTFILE and SSL_KEYFILE in .env for HTTPS.")
+
+    app.run(host='0.0.0.0', port=port, debug=debug, ssl_context=ssl_context)

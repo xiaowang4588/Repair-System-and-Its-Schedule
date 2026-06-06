@@ -579,7 +579,7 @@
         // 获取认证头
         function getAuthHeaders() {
             const token = localStorage.getItem('admin_token');
-            return token ? { 'Authorization': `Basic ${token}` } : {};
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
         }
 
         // 生成报告

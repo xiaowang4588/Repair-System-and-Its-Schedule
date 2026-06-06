@@ -3,6 +3,7 @@
 包含管理员登录、数据源管理、课表管理、学生管理、系统设置等接口
 """
 from flask import Blueprint, request, jsonify
+from utils.token_utils import generate_admin_token, verify_admin_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,35 +16,36 @@ admin_config = None
 cache = None
 repair_manager = None
 student_manager = None
+_app_secret_key = None
 
 
-def init_blueprint(admin_cfg, cache_mgr, repair_mgr, student_mgr):
+def init_blueprint(admin_cfg, cache_mgr, repair_mgr, student_mgr, secret_key=None):
     """初始化Blueprint的依赖"""
-    global admin_config, cache, repair_manager, student_manager
+    global admin_config, cache, repair_manager, student_manager, _app_secret_key
     admin_config = admin_cfg
     cache = cache_mgr
     repair_manager = repair_mgr
     student_manager = student_mgr
+    _app_secret_key = secret_key
 
 
 def admin_required(f):
-    """管理员认证装饰器"""
+    """管理员认证装饰器（HMAC Token 验证）"""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         auth = request.headers.get('Authorization', '')
-        if not auth.startswith('Basic '):
+        if not auth.startswith('Bearer '):
             return jsonify({'status': 'error', 'message': '未登录'}), 401
 
-        try:
-            import base64
-            decoded = base64.b64decode(auth[6:]).decode('utf-8')
-            username, password = decoded.split(':', 1)
-            if not admin_config.verify_admin(username, password):
-                return jsonify({'status': 'error', 'message': '账号或密码错误'}), 401
-        except Exception:
-            return jsonify({'status': 'error', 'message': '认证失败'}), 401
+        token = auth[7:]
+        result = verify_admin_token(token, _app_secret_key)
 
+        if not result.get('valid'):
+            return jsonify({'status': 'error', 'message': result.get('error', '认证失败')}), 401
+
+        # 将管理员用户名存入 request 上下文
+        request.admin_username = result['username']
         return f(*args, **kwargs)
 
     return decorated
@@ -52,13 +54,12 @@ def admin_required(f):
 @admin_bp.route('/admin/login', methods=['POST'])
 def admin_login():
     """管理员登录"""
-    import base64
     data = request.get_json() or {}
     username = data.get('username', '')
     password = data.get('password', '')
 
     if admin_config.verify_admin(username, password):
-        token = base64.b64encode(f"{username}:{password}".encode()).decode()
+        token = generate_admin_token(username, _app_secret_key)
         return jsonify({'status': 'ok', 'token': token, 'username': username})
     else:
         return jsonify({'status': 'error', 'message': '账号或密码错误'}), 401
@@ -335,7 +336,7 @@ def admin_students_stats():
 def admin_logs():
     """获取系统日志"""
     try:
-        from log_manager import get_log_handler
+        from utils.log_manager import get_log_handler
         handler = get_log_handler()
         level = request.args.get('level', '')
         keyword = request.args.get('keyword', '')
@@ -350,7 +351,7 @@ def admin_logs():
 def admin_logs_clear():
     """清空系统日志"""
     try:
-        from log_manager import get_log_handler
+        from utils.log_manager import get_log_handler
         handler = get_log_handler()
         handler.clear()
         return jsonify({'status': 'ok', 'message': '日志已清空'})

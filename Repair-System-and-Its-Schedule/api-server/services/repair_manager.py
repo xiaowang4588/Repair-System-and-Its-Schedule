@@ -256,7 +256,7 @@ def get_semester_list() -> list:
 
 def _get_current_semester() -> str:
     """获取当前学期名称，如 '2025-2026春季'"""
-    import admin_config
+    import services.admin_config as admin_config
     try:
         semester_config = admin_config.get_semester_config()
         start_date = semester_config.get('start_date', '')
@@ -510,7 +510,7 @@ def auto_fill(classroom: str, cache, weekday: str = '', section: str = '') -> di
     :param section: 节次 (如 "5-6节")，可选
     :return: 自动填充的数据
     """
-    import admin_config
+    import services.admin_config as admin_config
 
     week_number = admin_config.get_current_week()
 
@@ -618,7 +618,7 @@ def get_nearby_rooms(classroom: str, weekday: int, section: str, cache) -> dict:
 
     # 查询空教室
     try:
-        from empty_classroom_query import QueryCondition, ClassroomType
+        from datasource.empty_classroom_query import QueryCondition, ClassroomType
         query_system = cache.get_query_system()
 
         if not query_system:
@@ -749,7 +749,7 @@ def get_dashboard_stats(range_type: str = 'semester') -> dict:
         pass
 
     # 报修趋势（使用数据库聚合）
-    import admin_config
+    import services.admin_config as admin_config
     current_week = admin_config.get_current_week()
     semester_config = admin_config.get_semester_config()
 

@@ -137,6 +137,7 @@ def api_guide_create():
 
 
 @guide_bp.route('/api/guide/list', methods=['GET'])
+@student_required
 def api_guide_list():
     """获取动态列表（信息流）"""
     try:
@@ -205,6 +206,7 @@ def api_guide_list():
 
 
 @guide_bp.route('/api/guide/detail', methods=['GET'])
+@student_required
 def api_guide_detail():
     """获取动态详情"""
     try:
@@ -388,6 +390,7 @@ def api_guide_delete():
 # ============================================================
 
 @guide_bp.route('/api/guide/search', methods=['GET'])
+@student_required
 def api_guide_search():
     """搜索动态"""
     try:
@@ -447,6 +450,7 @@ def api_guide_search():
 
 
 @guide_bp.route('/api/guide/available-tags', methods=['GET'])
+@student_required
 def api_guide_available_tags():
     """获取系统中所有可用的设备标签和地点标签（与项目数据联动）"""
     try:
@@ -495,6 +499,7 @@ def api_guide_available_tags():
 
 
 @guide_bp.route('/api/guide/tags', methods=['GET'])
+@student_required
 def api_guide_tags():
     """获取所有标签及数量"""
     try:
@@ -659,6 +664,7 @@ def api_guide_comment():
 
 
 @guide_bp.route('/api/guide/comment/list', methods=['GET'])
+@student_required
 def api_guide_comment_list():
     """获取评论列表"""
     try:
@@ -877,15 +883,14 @@ def api_guide_my_favorites():
 
 
 @guide_bp.route('/api/guide/stats', methods=['GET'])
+@student_required
 def api_guide_stats():
     """获取个人防坑指南统计（可选认证，token无效时返回空数据而非401）"""
     try:
         from models import GuidePost, GuideFavorite
 
-        # 尝试从 token 获取学生 ID，失败则从参数获取
+        # 仅从 token 获取学生 ID（不允许通过 URL 参数枚举学号）
         student_id = _get_optional_student_id()
-        if not student_id:
-            student_id = request.args.get('student_id', '').strip()
 
         if not student_id:
             return jsonify({

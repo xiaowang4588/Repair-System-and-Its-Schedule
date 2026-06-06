@@ -239,7 +239,7 @@ class EmptyClassroomQuery:
 def create_query_system(df: pd.DataFrame) -> EmptyClassroomQuery:
     """创建查询系统"""
     # 清洗数据
-    from data_cleaning import clean_and_normalize_data
+    from datasource.data_cleaning import clean_and_normalize_data
     cleaned_df = clean_and_normalize_data(df)
     
     # 创建查询系统

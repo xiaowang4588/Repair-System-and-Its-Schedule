@@ -58,12 +58,12 @@ DEFAULT_CONFIG = {
         "type": "excel",
         "current_excel": "",
         "api": {
-            "base_url": "https://http-10-252-6-31-80.vpn.cqytxy.edu.cn",
-            "username": "",
-            "password": "",
-            "xnm": "2025",
-            "xqm": "12",
-            "xqh_id": "C67E548C4B4553FFE0530100007F06AD"
+            "base_url": os.environ.get("QINGGUO_BASE_URL", ""),
+            "username": os.environ.get("QINGGUO_USERNAME", ""),
+            "password": os.environ.get("QINGGUO_PASSWORD", ""),
+            "xnm": os.environ.get("QINGGUO_XNM", "2025"),
+            "xqm": os.environ.get("QINGGUO_XQM", "12"),
+            "xqh_id": os.environ.get("QINGGUO_XQH_ID", "")
         }
     },
     "semester": {
