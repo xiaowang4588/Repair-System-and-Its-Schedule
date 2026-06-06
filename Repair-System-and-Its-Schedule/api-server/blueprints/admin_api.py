@@ -439,3 +439,19 @@ def admin_excel_delete():
         return jsonify({'status': 'ok', 'message': '已删除文件'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@admin_bp.route('/admin/excel/clear-all', methods=['POST'])
+@admin_required
+def admin_excel_clear_all():
+    """清除所有 Excel 数据（删除全部文件 + 重置配置 + 清缓存）"""
+    try:
+        result = admin_config.clear_all_excel()
+        cache.reload()
+        return jsonify({
+            'status': 'ok',
+            'message': f'已清除所有数据（删除 {result["deleted_count"]} 个文件）',
+            'data': result
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

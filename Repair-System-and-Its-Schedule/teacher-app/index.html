@@ -2002,7 +2002,10 @@
                     <div class="card">
                         <div class="card-title">
                             <span><i data-lucide="file-check" style="width:16px;height:16px"></i> 已上传文件</span>
-                            <button class="btn btn-outline" onclick="loadExcelList()" style="font-size:12px;padding:4px 12px;"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i> 刷新</button>
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn btn-outline" onclick="loadExcelList()" style="font-size:12px;padding:4px 12px;"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i> 刷新</button>
+                                <button class="btn btn-danger" onclick="clearAllExcel()" style="font-size:12px;padding:4px 12px;"><i data-lucide="trash-2" style="width:14px;height:14px"></i> 清除所有数据</button>
+                            </div>
                         </div>
                         <div id="fileList"></div>
                     </div>
@@ -4486,6 +4489,16 @@
         async function deleteExcel(path) {
             if (!confirm('确定要删除此文件吗？')) return;
             try { await api('/admin/excel/delete', { method: 'POST', body: { path } }); loadExcelList(); } catch (e) { showMsg('excelMsg', e.message, 'error'); }
+        }
+
+        async function clearAllExcel() {
+            if (!confirm('确定要清除所有课表数据吗？\n\n这将：\n- 删除所有已上传的 Excel 文件\n- 重置数据源配置\n- 清空缓存数据\n\n此操作不可恢复！')) return;
+            if (!confirm('再次确认：真的要清除所有数据吗？')) return;
+            try {
+                const data = await api('/admin/excel/clear-all', { method: 'POST' });
+                showMsg('excelMsg', data.message, 'success');
+                loadExcelList();
+            } catch (e) { showMsg('excelMsg', '清除失败: ' + e.message, 'error'); }
         }
 
         // ============================================================

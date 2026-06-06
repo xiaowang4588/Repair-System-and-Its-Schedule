@@ -307,6 +307,35 @@ def delete_excel(file_path: str):
             save_config(config)
 
 
+def clear_all_excel() -> dict:
+    """
+    清除所有 Excel 数据：删除所有上传的文件 + 重置配置中的 Excel 路径。
+    返回删除的文件数量。
+    """
+    _ensure_dirs()
+    excel_dir = os.path.join(UPLOADS_DIR, "excel")
+    deleted_count = 0
+
+    # 删除所有 Excel 文件
+    if os.path.exists(excel_dir):
+        for f in os.listdir(excel_dir):
+            if f.endswith(('.xlsx', '.xls')):
+                filepath = os.path.join(excel_dir, f)
+                try:
+                    os.remove(filepath)
+                    deleted_count += 1
+                except OSError as e:
+                    logger.warning(f"删除文件失败 {filepath}: {e}")
+
+    # 重置配置中的 Excel 路径
+    config = load_config()
+    config["datasource"]["current_excel"] = ""
+    save_config(config)
+
+    logger.info(f"已清除所有 Excel 数据，删除 {deleted_count} 个文件")
+    return {'deleted_count': deleted_count}
+
+
 def save_api_config(data: dict):
     """保存 API 数据源配置"""
     config = load_config()
