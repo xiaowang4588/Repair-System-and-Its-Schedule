@@ -25,3 +25,4 @@ unpackage/
 # 系统文件
 .DS_Store
 Thumbs.db
+api-server/config.json.bak
