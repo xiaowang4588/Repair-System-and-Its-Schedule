@@ -1,35 +1,40 @@
 <template>
     <view class="page">
-        <!-- 快捷操作入口 -->
+        <!-- 顶部欢迎横幅 -->
+        <view class="welcome-banner">
+            <view class="welcome-left">
+                <text class="welcome-hi">Hi，{{ studentName || '同学' }}</text>
+                <text class="welcome-sub">今天有什么设备需要报修吗？</text>
+            </view>
+            <view class="welcome-avatar" @click="goProfile">
+                <text class="avatar-text">{{ studentName ? studentName[0] : '?' }}</text>
+            </view>
+        </view>
+
+        <!-- 快捷操作 -->
         <view class="section-card">
             <view class="section-title">快捷操作</view>
             <view class="quick-grid">
                 <view class="quick-item" @click="switchTo('/pages/repair/repair')">
-                    <view class="quick-icon-wrap" style="background:#EEF2FF;">
+                    <view class="quick-icon-wrap bg-blue">
                         <text class="quick-icon">&#x1f527;</text>
                     </view>
                     <text class="quick-text">提交报修</text>
                 </view>
                 <view class="quick-item" @click="navigateTo('/pages/repair/list')">
-                    <view class="quick-icon-wrap" style="background:#FEF3C7;">
+                    <view class="quick-icon-wrap bg-amber">
                         <text class="quick-icon">&#x1f4cb;</text>
                     </view>
                     <text class="quick-text">全部记录</text>
                 </view>
                 <view class="quick-item" @click="navigateTo('/pages/course/schedule')">
-                    <view class="quick-icon-wrap" style="background:#DCFCE7;">
+                    <view class="quick-icon-wrap bg-green">
                         <text class="quick-icon">&#x1f4c5;</text>
                     </view>
                     <text class="quick-text">课表查询</text>
                 </view>
-                <view class="quick-item" @click="navigateTo('/pages/empty/empty')">
-                    <view class="quick-icon-wrap" style="background:#F3E8FF;">
-                        <text class="quick-icon">&#x1f3eb;</text>
-                    </view>
-                    <text class="quick-text">空教室</text>
-                </view>
                 <view class="quick-item" @click="switchTo('/pages/guide/index')">
-                    <view class="quick-icon-wrap" style="background:#FFF7ED;">
+                    <view class="quick-icon-wrap bg-orange">
                         <text class="quick-icon">&#x1f4da;</text>
                     </view>
                     <text class="quick-text">防坑指南</text>
@@ -37,23 +42,31 @@
             </view>
         </view>
 
-        <!-- 报修动态 -->
+        <!-- 最新报修动态 -->
         <view class="section-card">
-            <view class="section-title">
-                <text>报修动态</text>
-                <text class="section-sub">最新报修</text>
+            <view class="section-header">
+                <view class="section-title">报修动态</view>
+                <text class="section-link" @click="goToList">查看全部</text>
             </view>
-            <view v-if="recentList.length === 0" class="empty-tip">暂无报修记录</view>
+
+            <view v-if="recentList.length === 0" class="empty-state">
+                <text class="empty-icon">&#x1f4ed;</text>
+                <text class="empty-text">暂无报修记录</text>
+            </view>
+
             <view v-for="item in recentList" :key="item.id" class="record-item">
-                <view class="record-left">
-                    <view class="record-title">{{ item.classroom || '未知位置' }}</view>
-                    <view class="record-desc">{{ item.fault_type || '' }}</view>
-                </view>
-                <view class="record-right">
-                    <view class="record-status" :class="statusClass(item.status)">
-                        {{ item.status || '未知' }}
+                <view class="record-dot" :class="statusDotClass(item.status)"></view>
+                <view class="record-body">
+                    <view class="record-top">
+                        <text class="record-title">{{ item.classroom || '未知位置' }}</text>
+                        <view class="record-status" :class="statusClass(item.status)">
+                            {{ item.status || '未知' }}
+                        </view>
                     </view>
-                    <view class="record-time">{{ formatTime(item.report_time) }}</view>
+                    <view class="record-bottom">
+                        <text class="record-type">{{ item.fault_type || '' }}</text>
+                        <text class="record-time">{{ formatTime(item.report_time) }}</text>
+                    </view>
                 </view>
             </view>
         </view>
@@ -66,27 +79,27 @@ import { request } from '../../api/index.js'
 export default {
     data() {
         return {
+            studentName: '',
             recentList: []
         }
     },
     onLoad() {
-        // 检查登录状态
         const token = uni.getStorageSync('student_token')
         if (!token) {
             uni.reLaunch({ url: '/pages/login/login' })
             return
         }
+        this.studentName = uni.getStorageSync('student_name') || ''
         this.loadRecentRepairs()
     },
     onShow() {
-        // 每次显示页面刷新数据
         const token = uni.getStorageSync('student_token')
         if (token) {
+            this.studentName = uni.getStorageSync('student_name') || ''
             this.loadRecentRepairs()
         }
     },
     methods: {
-        // 获取最新5条报修动态
         async loadRecentRepairs() {
             try {
                 const res = await request('/api/repair/list', { page: 1, page_size: 5 })
@@ -97,38 +110,29 @@ export default {
                 console.error('获取报修动态失败:', e)
             }
         },
-        // 状态样式类映射
         statusClass(status) {
             if (status === '未处理') return 'status-pending'
             if (status === '处理中') return 'status-processing'
             if (status === '已处理' || status === '已解决') return 'status-resolved'
             return 'status-pending'
         },
-        // 时间格式化（report_time 是字符串如 "2024-01-15 10:30"）
+        statusDotClass(status) {
+            if (status === '未处理') return 'dot-pending'
+            if (status === '处理中') return 'dot-processing'
+            return 'dot-resolved'
+        },
         formatTime(t) {
             if (!t) return ''
-            // 取月-日 时:分 部分
             const parts = t.split(' ')
             if (parts.length >= 2) {
-                const datePart = parts[0] // 2024-01-15
-                const timePart = parts[1] // 10:30
-                const md = datePart.substring(5) // 01-15
-                return `${md} ${timePart.substring(0, 5)}`
+                return parts[0].substring(5) + ' ' + parts[1].substring(0, 5)
             }
             return t
         },
-        // 跳转到报修记录
-        goToList(filter) {
-            uni.navigateTo({ url: '/pages/repair/list' })
-        },
-        // Tab页跳转
-        switchTo(url) {
-            uni.switchTab({ url })
-        },
-        // 普通页跳转
-        navigateTo(url) {
-            uni.navigateTo({ url })
-        }
+        goToList() { uni.navigateTo({ url: '/pages/repair/list' }) },
+        goProfile() { uni.switchTab({ url: '/pages/profile/profile' }) },
+        switchTo(url) { uni.switchTab({ url }) },
+        navigateTo(url) { uni.navigateTo({ url }) }
     }
 }
 </script>
@@ -136,116 +140,186 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
-    padding: 20rpx;
+    background: #F0F4FF;
 }
 
-/* 通用卡片 */
+/* 欢迎横幅 */
+.welcome-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 48rpx 32rpx 56rpx;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 0 0 40rpx 40rpx;
+}
+
+.welcome-left {
+    flex: 1;
+}
+
+.welcome-hi {
+    font-size: 38rpx;
+    font-weight: 700;
+    color: white;
+    display: block;
+    margin-bottom: 8rpx;
+}
+
+.welcome-sub {
+    font-size: 26rpx;
+    color: rgba(255, 255, 255, 0.8);
+    display: block;
+}
+
+.welcome-avatar {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 24rpx;
+}
+
+.avatar-text {
+    font-size: 36rpx;
+    font-weight: 700;
+    color: white;
+}
+
+/* 卡片 */
 .section-card {
-    background: #fff;
-    border-radius: 16rpx;
-    padding: 24rpx;
-    margin-bottom: 16rpx;
+    background: white;
+    border-radius: 20rpx;
+    padding: 28rpx;
+    margin: -20rpx 24rpx 20rpx;
+    position: relative;
+    box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
 }
 
 .section-title {
     font-size: 30rpx;
-    font-weight: 600;
-    color: #1F2937;
+    font-weight: 700;
+    color: #1E293B;
     margin-bottom: 20rpx;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
 }
 
-.section-sub {
-    font-size: 22rpx;
-    font-weight: 400;
-    color: #9CA3AF;
+.section-header .section-title {
+    margin-bottom: 0;
+}
+
+.section-link {
+    font-size: 24rpx;
+    color: #667eea;
+    font-weight: 500;
 }
 
 /* 快捷入口 */
 .quick-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12rpx;
+    gap: 16rpx;
 }
 
 .quick-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 16rpx 0;
-    border-radius: 12rpx;
+    padding: 20rpx 0;
+    border-radius: 16rpx;
     transition: all 0.15s;
 }
 
 .quick-item:active {
-    transform: scale(0.95);
-    background: #F5F7FA;
+    transform: scale(0.93);
 }
 
 .quick-icon-wrap {
-    width: 88rpx;
-    height: 88rpx;
-    border-radius: 20rpx;
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: 24rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 10rpx;
+    margin-bottom: 12rpx;
 }
 
-.quick-icon { font-size: 40rpx; }
+.bg-blue { background: linear-gradient(135deg, #DBEAFE, #BFDBFE); }
+.bg-amber { background: linear-gradient(135deg, #FEF3C7, #FDE68A); }
+.bg-green { background: linear-gradient(135deg, #DCFCE7, #BBF7D0); }
+.bg-orange { background: linear-gradient(135deg, #FFEDD5, #FED7AA); }
+
+.quick-icon { font-size: 44rpx; }
 
 .quick-text {
     font-size: 22rpx;
-    color: #6B7280;
+    color: #64748B;
+    font-weight: 500;
 }
 
-/* 报修记录列表 */
+/* 报修动态列表 */
 .record-item {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    padding: 16rpx 0;
-    border-bottom: 1rpx solid #F3F4F6;
+    padding: 20rpx 0;
+    border-bottom: 1rpx solid #F1F5F9;
 }
 
-.record-item:last-child { border-bottom: none; }
+.record-item:last-child {
+    border-bottom: none;
+    padding-bottom: 4rpx;
+}
 
-.record-left {
+.record-dot {
+    width: 16rpx;
+    height: 16rpx;
+    border-radius: 50%;
+    margin-top: 10rpx;
+    margin-right: 20rpx;
+    flex-shrink: 0;
+}
+
+.dot-pending { background: #F59E0B; }
+.dot-processing { background: #3B82F6; }
+.dot-resolved { background: #10B981; }
+
+.record-body {
     flex: 1;
-    margin-right: 16rpx;
+    min-width: 0;
+}
+
+.record-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8rpx;
 }
 
 .record-title {
     font-size: 28rpx;
     font-weight: 600;
-    color: #1F2937;
-    margin-bottom: 4rpx;
-}
-
-.record-desc {
-    font-size: 22rpx;
-    color: #9CA3AF;
+    color: #1E293B;
+    flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.record-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    flex-shrink: 0;
-}
-
 .record-status {
     font-size: 20rpx;
-    padding: 4rpx 12rpx;
-    border-radius: 6rpx;
-    margin-bottom: 6rpx;
-    font-weight: 500;
+    padding: 4rpx 14rpx;
+    border-radius: 8rpx;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-left: 12rpx;
 }
 
 .status-pending {
@@ -263,15 +337,38 @@ export default {
     color: #16A34A;
 }
 
-.record-time {
-    font-size: 20rpx;
-    color: #9CA3AF;
+.record-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.empty-tip {
-    text-align: center;
-    padding: 40rpx 0;
+.record-type {
+    font-size: 24rpx;
+    color: #94A3B8;
+}
+
+.record-time {
+    font-size: 22rpx;
+    color: #CBD5E1;
+}
+
+/* 空状态 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48rpx 0;
+}
+
+.empty-icon {
+    font-size: 64rpx;
+    margin-bottom: 16rpx;
+    opacity: 0.5;
+}
+
+.empty-text {
     font-size: 26rpx;
-    color: #9CA3AF;
+    color: #94A3B8;
 }
 </style>

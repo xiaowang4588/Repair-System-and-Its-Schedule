@@ -1,55 +1,65 @@
 <template>
     <view class="page">
-        <!-- 用户信息卡片 -->
-        <view class="user-card">
-            <view class="avatar">{{ studentInfo.name ? studentInfo.name[0] : '?' }}</view>
-            <view class="user-text">
-                <view class="user-name">{{ studentInfo.name || '加载中...' }}</view>
-                <view class="user-id">学号：{{ studentInfo.student_id || '--' }}</view>
+        <!-- 顶部用户卡片 -->
+        <view class="profile-header">
+            <view class="profile-avatar">
+                <text class="avatar-letter">{{ studentInfo.name ? studentInfo.name[0] : '?' }}</text>
             </view>
+            <text class="profile-name">{{ studentInfo.name || '加载中...' }}</text>
+            <text class="profile-id">学号 {{ studentInfo.student_id || '--' }}</text>
         </view>
 
-        <!-- 报修统计 -->
-        <view class="card stats-card">
-            <view class="card-title">报修统计</view>
-            <view class="stats-row">
-                <view class="stat-item">
-                    <text class="stat-num total">{{ teamTotal }}</text>
-                    <text class="stat-label">总报修量</text>
-                </view>
-                <view class="stat-divider"></view>
-                <view class="stat-item" @click="goToRepairList('my')">
-                    <text class="stat-num">{{ stats.total }}</text>
-                    <text class="stat-label">我的报修</text>
-                </view>
-                <view class="stat-divider"></view>
-                <view class="stat-item" @click="goToRepairList('my')">
-                    <text class="stat-num pending">{{ stats.pending }}</text>
-                    <text class="stat-label">我的待处理</text>
-                </view>
+        <!-- 统计卡片 -->
+        <view class="stats-card">
+            <view class="stat-block">
+                <text class="stat-value blue">{{ teamTotal }}</text>
+                <text class="stat-label">总报修量</text>
+            </view>
+            <view class="stat-sep"></view>
+            <view class="stat-block" @click="goToRepairList">
+                <text class="stat-value">{{ stats.total }}</text>
+                <text class="stat-label">我的报修</text>
+            </view>
+            <view class="stat-sep"></view>
+            <view class="stat-block" @click="goToRepairList">
+                <text class="stat-value orange">{{ stats.pending }}</text>
+                <text class="stat-label">待处理</text>
             </view>
         </view>
 
         <!-- 防坑指南 -->
-        <view class="card">
-            <view class="card-title">防坑指南</view>
-            <view class="menu-item" @click="navigateTo('/pages/guide/my-posts')">
-                <text class="menu-icon">📝</text>
-                <text class="menu-text">我的发布</text>
-                <text class="menu-count">{{ guideStats.postCount }}</text>
-                <text class="menu-arrow">＞</text>
+        <view class="menu-card">
+            <view class="menu-row" @click="navigateTo('/pages/guide/my-posts')">
+                <view class="menu-icon-wrap bg-purple">
+                    <text class="menu-icon-text">&#x1f4dd;</text>
+                </view>
+                <text class="menu-label">我的发布</text>
+                <text class="menu-badge">{{ guideStats.postCount }}</text>
+                <text class="menu-arrow">&#x203a;</text>
             </view>
-            <view class="menu-item" @click="navigateTo('/pages/guide/my-favorites')">
-                <text class="menu-icon">⭐</text>
-                <text class="menu-text">我的收藏</text>
-                <text class="menu-count">{{ guideStats.favoriteCount }}</text>
-                <text class="menu-arrow">＞</text>
+            <view class="menu-row" @click="navigateTo('/pages/guide/my-favorites')">
+                <view class="menu-icon-wrap bg-amber">
+                    <text class="menu-icon-text">&#x2b50;</text>
+                </view>
+                <text class="menu-label">我的收藏</text>
+                <text class="menu-badge">{{ guideStats.favoriteCount }}</text>
+                <text class="menu-arrow">&#x203a;</text>
             </view>
         </view>
 
         <!-- 修改密码 -->
-        <view class="card">
-            <view class="card-title">修改密码</view>
+        <view class="menu-card">
+            <view class="menu-row" @click="showPwdForm = !showPwdForm">
+                <view class="menu-icon-wrap bg-blue">
+                    <text class="menu-icon-text">&#x1f512;</text>
+                </view>
+                <text class="menu-label">修改密码</text>
+                <text class="menu-arrow">&#x203a;</text>
+            </view>
+        </view>
+
+        <!-- 密码表单（展开） -->
+        <view class="pwd-card" v-if="showPwdForm">
             <view class="form-group">
                 <text class="form-label">当前密码</text>
                 <input class="form-input" v-model="pwdForm.old_password" placeholder="请输入当前密码" password />
@@ -62,28 +72,23 @@
                 <text class="form-label">确认密码</text>
                 <input class="form-input" v-model="pwdForm.confirm_password" placeholder="请再次输入新密码" password />
             </view>
-            <button class="btn-change-pwd" @click="changePassword">确认修改</button>
+            <button class="btn-confirm" @click="changePassword">确认修改</button>
         </view>
 
-        <!-- 关于系统 -->
-        <view class="card">
-            <view class="card-title">关于系统</view>
-            <view class="about-row">
-                <text class="about-label">系统名称</text>
-                <text class="about-value">多媒体设备报修管理系统</text>
-            </view>
-            <view class="about-row">
-                <text class="about-label">所属单位</text>
-                <text class="about-value">重庆移通学院綦江校区</text>
-            </view>
-            <view class="about-row">
-                <text class="about-label">版本</text>
-                <text class="about-value">v1.0.0</text>
+        <!-- 关于 -->
+        <view class="menu-card">
+            <view class="menu-row">
+                <view class="menu-icon-wrap bg-gray">
+                    <text class="menu-icon-text">&#x2139;</text>
+                </view>
+                <text class="menu-label">多媒体设备报修管理系统 v1.0</text>
             </view>
         </view>
 
         <!-- 退出登录 -->
-        <button class="btn-logout" @click="logout">退出登录</button>
+        <view class="logout-wrap">
+            <button class="btn-logout" @click="logout">退出登录</button>
+        </view>
     </view>
 </template>
 
@@ -99,6 +104,7 @@ export default {
             teamTotal: 0,
             stats: { total: 0, pending: 0 },
             guideStats: { postCount: 0, favoriteCount: 0 },
+            showPwdForm: false,
             pwdForm: {
                 old_password: '',
                 new_password: '',
@@ -107,7 +113,6 @@ export default {
         }
     },
     onLoad() {
-        // 检查登录状态
         const token = uni.getStorageSync('student_token')
         if (!token) {
             uni.reLaunch({ url: '/pages/login/login' })
@@ -117,7 +122,6 @@ export default {
         this.loadGuideStats()
     },
     onShow() {
-        // 每次显示页面刷新数据
         const token = uni.getStorageSync('student_token')
         if (token) {
             this.loadStudentInfo()
@@ -125,40 +129,21 @@ export default {
         }
     },
     methods: {
-        // 获取学生信息和报修统计
         async loadStudentInfo() {
-            const studentId = uni.getStorageSync('student_id') || ''
-
-            // 获取个人统计（从token获取身份，无需传student_id）
             try {
                 const res = await request('/api/student/info')
                 if (res && res.status === 'ok' && res.data) {
                     this.studentInfo = res.data
-                    if (res.data.stats) {
-                        this.stats = res.data.stats
-                    }
+                    if (res.data.stats) this.stats = res.data.stats
                 }
-            } catch (e) {
-                console.warn('获取学生信息失败:', e)
-            }
-
-            // 获取团队总报修量（公开接口，不需要认证）
-            try {
                 const statsRes = await request('/api/repair/stats')
                 if (statsRes && statsRes.status === 'ok' && statsRes.data) {
                     this.teamTotal = statsRes.data.total_count || 0
                 }
             } catch (e) {
-                console.warn('获取报修统计失败:', e)
+                console.warn('获取学生信息失败:', e)
             }
         },
-
-        // 跳转到报修记录
-        goToRepairList(type) {
-            uni.navigateTo({ url: '/pages/repair/list' })
-        },
-
-        // 加载防坑指南统计（失败不影响主流程）
         async loadGuideStats() {
             try {
                 const res = await getGuideStats()
@@ -169,58 +154,48 @@ export default {
                     }
                 }
             } catch (e) {
-                // 静默失败，不提示，不影响页面正常使用
-                console.warn('获取防坑指南统计失败（可忽略）:', e)
+                console.warn('获取防坑指南统计失败:', e)
             }
         },
-
-        // 普通页跳转
+        goToRepairList() {
+            uni.navigateTo({ url: '/pages/repair/list' })
+        },
         navigateTo(url) {
             uni.navigateTo({ url })
         },
-
-        // 修改密码
         async changePassword() {
             if (!this.pwdForm.old_password) {
-                uni.showToast({ title: '请输入当前密码', icon: 'none' })
-                return
+                uni.showToast({ title: '请输入当前密码', icon: 'none' }); return
             }
             if (!this.pwdForm.new_password) {
-                uni.showToast({ title: '请输入新密码', icon: 'none' })
-                return
+                uni.showToast({ title: '请输入新密码', icon: 'none' }); return
             }
             if (this.pwdForm.new_password.length < 6) {
-                uni.showToast({ title: '新密码至少6位', icon: 'none' })
-                return
+                uni.showToast({ title: '新密码至少6位', icon: 'none' }); return
             }
             if (this.pwdForm.new_password !== this.pwdForm.confirm_password) {
-                uni.showToast({ title: '两次输入的密码不一致', icon: 'none' })
-                return
+                uni.showToast({ title: '两次输入的密码不一致', icon: 'none' }); return
             }
-
             uni.showLoading({ title: '提交中...' })
             try {
-                const studentId = uni.getStorageSync('student_id') || ''
                 const res = await post('/api/student/change-password', {
-                    student_id: studentId,
+                    student_id: uni.getStorageSync('student_id') || '',
                     old_password: this.pwdForm.old_password,
                     new_password: this.pwdForm.new_password
                 })
                 if (res && res.status === 'ok') {
                     uni.showToast({ title: '密码修改成功', icon: 'success' })
                     this.pwdForm = { old_password: '', new_password: '', confirm_password: '' }
+                    this.showPwdForm = false
                 } else {
                     uni.showToast({ title: res ? res.message || '修改失败' : '修改失败', icon: 'none' })
                 }
             } catch (e) {
-                console.error('修改密码失败:', e)
                 uni.showToast({ title: '修改失败', icon: 'none' })
             } finally {
                 uni.hideLoading()
             }
         },
-
-        // 退出登录
         logout() {
             uni.showModal({
                 title: '提示',
@@ -234,8 +209,7 @@ export default {
                     }
                 }
             })
-        },
-
+        }
     }
 }
 </script>
@@ -243,207 +217,217 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
-    padding: 24rpx;
-    padding-bottom: 120rpx;
+    background: #F0F4FF;
 }
 
-/* 用户信息卡片 */
-.user-card {
+/* 用户头部 */
+.profile-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 60rpx 32rpx 80rpx;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    background: #4F7CFF;
-    border-radius: 16rpx;
-    padding: 40rpx 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
+    border-radius: 0 0 40rpx 40rpx;
 }
 
-.avatar {
-    width: 96rpx;
-    height: 96rpx;
+.profile-avatar {
+    width: 120rpx;
+    height: 120rpx;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
-    color: #fff;
-    font-size: 40rpx;
-    font-weight: 700;
+    background: rgba(255, 255, 255, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 28rpx;
-    flex-shrink: 0;
+    margin-bottom: 20rpx;
 }
 
-.user-text {
-    flex: 1;
+.avatar-letter {
+    font-size: 48rpx;
+    font-weight: 700;
+    color: white;
 }
 
-.user-name {
+.profile-name {
     font-size: 36rpx;
     font-weight: 700;
-    color: #fff;
+    color: white;
     margin-bottom: 8rpx;
 }
 
-.user-id {
-    font-size: 26rpx;
-    color: rgba(255, 255, 255, 0.8);
+.profile-id {
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-/* 通用卡片 */
-.card {
-    background: white;
-    border-radius: 16rpx;
-    padding: 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
-}
-
-.card-title {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 24rpx;
-    padding-bottom: 16rpx;
-    border-bottom: 1rpx solid #f0f0f0;
-}
-
-/* 统计 */
-.stats-row {
+/* 统计卡片 */
+.stats-card {
     display: flex;
     align-items: center;
+    background: white;
+    border-radius: 20rpx;
+    padding: 32rpx 16rpx;
+    margin: -36rpx 24rpx 20rpx;
+    position: relative;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
 }
 
-.stat-item {
+.stat-block {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.stat-num {
+.stat-value {
     font-size: 44rpx;
     font-weight: 700;
-    color: #333;
-    margin-bottom: 8rpx;
+    color: #1E293B;
+    margin-bottom: 6rpx;
 }
 
-.stat-num.pending {
-    color: #ff9500;
-}
-
-.stat-num.total {
-    color: #4F7CFF;
-}
+.stat-value.blue { color: #667eea; }
+.stat-value.orange { color: #F59E0B; }
 
 .stat-label {
-    font-size: 24rpx;
-    color: #999;
+    font-size: 22rpx;
+    color: #94A3B8;
 }
 
-.stat-divider {
+.stat-sep {
     width: 1rpx;
     height: 60rpx;
-    background: #eee;
+    background: #E2E8F0;
 }
 
-/* 表单 */
+/* 菜单卡片 */
+.menu-card {
+    background: white;
+    border-radius: 20rpx;
+    margin: 0 24rpx 16rpx;
+    overflow: hidden;
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
+}
+
+.menu-row {
+    display: flex;
+    align-items: center;
+    padding: 28rpx 28rpx;
+    border-bottom: 1rpx solid #F1F5F9;
+}
+
+.menu-row:last-child {
+    border-bottom: none;
+}
+
+.menu-row:active {
+    background: #F8FAFC;
+}
+
+.menu-icon-wrap {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 20rpx;
+}
+
+.bg-purple { background: #F3E8FF; }
+.bg-amber { background: #FEF3C7; }
+.bg-blue { background: #DBEAFE; }
+.bg-gray { background: #F1F5F9; }
+
+.menu-icon-text { font-size: 28rpx; }
+
+.menu-label {
+    flex: 1;
+    font-size: 28rpx;
+    color: #1E293B;
+    font-weight: 500;
+}
+
+.menu-badge {
+    font-size: 24rpx;
+    color: #94A3B8;
+    margin-right: 12rpx;
+}
+
+.menu-arrow {
+    font-size: 36rpx;
+    color: #CBD5E1;
+    font-weight: 300;
+}
+
+/* 密码表单 */
+.pwd-card {
+    background: white;
+    border-radius: 20rpx;
+    padding: 28rpx;
+    margin: 0 24rpx 16rpx;
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
+}
+
 .form-group {
-    margin-bottom: 24rpx;
+    margin-bottom: 20rpx;
 }
 
 .form-label {
-    font-size: 28rpx;
-    color: #555;
-    margin-bottom: 12rpx;
+    font-size: 24rpx;
+    color: #64748B;
+    margin-bottom: 10rpx;
     display: block;
+    font-weight: 500;
 }
 
 .form-input {
     width: 100%;
-    height: 88rpx;
+    height: 84rpx;
     padding: 0 24rpx;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
+    border: 2rpx solid #E2E8F0;
+    border-radius: 14rpx;
     font-size: 28rpx;
-    background: #fafafa;
+    color: #1E293B;
+    background: #F8FAFC;
     box-sizing: border-box;
 }
 
 .form-input:focus {
-    border-color: #4F7CFF;
+    border-color: #667eea;
     background: white;
 }
 
-.btn-change-pwd {
+.btn-confirm {
     width: 100%;
-    height: 88rpx;
-    line-height: 88rpx;
-    background: #4F7CFF;
+    height: 84rpx;
+    line-height: 84rpx;
+    background: #667eea;
     color: white;
     border: none;
-    border-radius: 12rpx;
-    font-size: 30rpx;
-    font-weight: 500;
+    border-radius: 14rpx;
+    font-size: 28rpx;
+    font-weight: 600;
     margin-top: 8rpx;
 }
 
-.btn-change-pwd:active {
-    opacity: 0.8;
+/* 退出 */
+.logout-wrap {
+    padding: 24rpx;
 }
 
-/* 关于系统 */
-.about-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
-}
-
-.about-row:last-child {
-    border-bottom: none;
-}
-
-.about-label {
-    font-size: 28rpx;
-    color: #999;
-}
-
-.about-value {
-    font-size: 28rpx;
-    color: #333;
-}
-
-/* 菜单项 */
-.menu-item {
-    display: flex;
-    align-items: center;
-    padding: 20rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
-}
-
-.menu-item:last-child { border-bottom: none; }
-.menu-icon { font-size: 36rpx; margin-right: 16rpx; }
-.menu-text { flex: 1; font-size: 28rpx; color: #333; }
-.menu-count { font-size: 26rpx; color: #999; margin-right: 12rpx; }
-.menu-arrow { font-size: 24rpx; color: #ccc; }
-
-/* 退出登录 */
 .btn-logout {
     width: 100%;
     height: 88rpx;
     line-height: 88rpx;
     background: white;
-    color: #ff4d4f;
-    border: 1rpx solid #ff4d4f;
-    border-radius: 12rpx;
-    font-size: 30rpx;
-    font-weight: 500;
-    margin-top: 16rpx;
+    color: #EF4444;
+    border: 2rpx solid #FEE2E2;
+    border-radius: 16rpx;
+    font-size: 28rpx;
+    font-weight: 600;
 }
 
 .btn-logout:active {
-    background: #fff1f0;
+    background: #FEF2F2;
 }
 </style>
