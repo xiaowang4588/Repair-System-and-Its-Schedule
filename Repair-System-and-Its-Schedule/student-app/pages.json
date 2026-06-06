@@ -4,7 +4,7 @@
             "path": "pages/login/login",
             "style": {
                 "navigationBarTitleText": "学生登录",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -12,7 +12,7 @@
             "path": "pages/index/index",
             "style": {
                 "navigationBarTitleText": "首页",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -20,7 +20,7 @@
             "path": "pages/repair/repair",
             "style": {
                 "navigationBarTitleText": "提交报修",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -28,7 +28,7 @@
             "path": "pages/repair/list",
             "style": {
                 "navigationBarTitleText": "报修记录",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -36,7 +36,7 @@
             "path": "pages/course/schedule",
             "style": {
                 "navigationBarTitleText": "课表查询",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -44,7 +44,7 @@
             "path": "pages/profile/profile",
             "style": {
                 "navigationBarTitleText": "我的",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -52,7 +52,7 @@
             "path": "pages/query/query",
             "style": {
                 "navigationBarTitleText": "课程查询",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -60,7 +60,7 @@
             "path": "pages/stats/stats",
             "style": {
                 "navigationBarTitleText": "数据统计",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -68,7 +68,7 @@
             "path": "pages/weekly/weekly",
             "style": {
                 "navigationBarTitleText": "周课表",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -76,7 +76,7 @@
             "path": "pages/empty/empty",
             "style": {
                 "navigationBarTitleText": "空教室",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -84,7 +84,7 @@
             "path": "pages/guide/index",
             "style": {
                 "navigationBarTitleText": "防坑指南",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -92,7 +92,7 @@
             "path": "pages/guide/publish",
             "style": {
                 "navigationBarTitleText": "发布指南",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -100,7 +100,7 @@
             "path": "pages/guide/detail",
             "style": {
                 "navigationBarTitleText": "详情",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -108,7 +108,7 @@
             "path": "pages/guide/tag",
             "style": {
                 "navigationBarTitleText": "标签筛选",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -116,7 +116,7 @@
             "path": "pages/guide/my-posts",
             "style": {
                 "navigationBarTitleText": "我的发布",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         },
@@ -124,14 +124,14 @@
             "path": "pages/guide/my-favorites",
             "style": {
                 "navigationBarTitleText": "我的收藏",
-                "navigationBarBackgroundColor": "#667eea",
+                "navigationBarBackgroundColor": "#5BBF8A",
                 "navigationBarTextStyle": "white"
             }
         }
     ],
     "tabBar": {
         "color": "#94A3B8",
-        "selectedColor": "#667eea",
+        "selectedColor": "#5BBF8A",
         "backgroundColor": "#ffffff",
         "borderStyle": "white",
         "list": [
@@ -164,7 +164,7 @@
     "globalStyle": {
         "navigationBarTextStyle": "white",
         "navigationBarTitleText": "报修表填写助手",
-        "navigationBarBackgroundColor": "#667eea",
-        "backgroundColor": "#F0F4FF"
+        "navigationBarBackgroundColor": "#5BBF8A",
+        "backgroundColor": "#F7FAF8"
     }
 }
