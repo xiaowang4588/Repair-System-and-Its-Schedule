@@ -62,9 +62,11 @@ function showErrorToast(message) {
  */
 let _isRedirectingToLogin = false
 
-function handle401() {
+function handle401(requestUrl) {
     if (_isRedirectingToLogin) return
     _isRedirectingToLogin = true
+    console.error('[AUTH] 401 triggered by:', requestUrl)
+    console.error('[AUTH] Current token:', uni.getStorageSync('student_token') ? 'exists' : 'MISSING')
     uni.removeStorageSync('student_token')
     uni.removeStorageSync('student_id')
     uni.removeStorageSync('student_name')
@@ -101,7 +103,7 @@ function doRequest(url, method, data, resolve, reject) {
             if (res.statusCode === 200) {
                 resolve(res.data)
             } else if (res.statusCode === 401) {
-                handle401()
+                handle401(url)
                 reject(new Error('登录已过期，请重新登录'))
             } else {
                 const errMsg = getErrorMessage(res.statusCode, res.data)

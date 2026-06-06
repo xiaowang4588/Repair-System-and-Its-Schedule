@@ -26,6 +26,18 @@ init_log_handler()
 from models import init_db
 init_db()
 
+# 启动诊断
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+_env_exists = os.path.exists(_env_path)
+_env_secret = os.environ.get('SECRET_KEY', '')
+logger.info("=" * 50)
+logger.info("[STARTUP] .env file exists: %s (path: %s)", _env_exists, _env_path)
+logger.info("[STARTUP] SECRET_KEY from env: %s", ('SET (' + _env_secret[:8] + '...)' if _env_secret else 'NOT SET - will generate random!'))
+logger.info("[STARTUP] ALLOWED_ORIGINS: %s", os.environ.get('ALLOWED_ORIGINS', 'NOT SET'))
+logger.info("[STARTUP] STUDENT_DEFAULT_PASSWORD: %s", 'SET' if os.environ.get('STUDENT_DEFAULT_PASSWORD') else 'NOT SET (using 123456)')
+logger.info("[STARTUP] ADMIN_PASSWORD: %s", 'SET' if os.environ.get('ADMIN_PASSWORD') else 'NOT SET (will generate random)')
+logger.info("=" * 50)
+
 # 创建 Flask 应用
 app = Flask(__name__)
 
