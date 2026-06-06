@@ -266,7 +266,8 @@ def upload_excel(file, year: str = '', semester: str = '') -> dict:
     filepath = os.path.join(excel_dir, filename)
 
     file.save(filepath)
-    _time.sleep(0.3)
+    # 等待 Windows 释放文件锁（防病毒扫描、索引服务等）
+    _time.sleep(1.0)
 
     rel_path = os.path.relpath(filepath, BASE_DIR)
     set_current_excel(rel_path)

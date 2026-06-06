@@ -213,13 +213,27 @@ class CacheManager:
 
     def test_connection(self) -> bool:
         """测试数据源连接是否正常"""
-        # Bug9 修复: 加锁访问数据源
         with self._lock:
             try:
                 if not self._data_source.is_available():
                     return False
-                df = self._data_source.load()
-                return df is not None and not df.empty
+
+                # 如果缓存中已有数据，直接返回成功（避免重复读文件）
+                if self._df is not None and not self._df.empty:
+                    return True
+
+                # 缓存为空，尝试加载（带重试，兼容 Windows 文件锁）
+                for attempt in range(3):
+                    try:
+                        df = self._data_source.load()
+                        if df is not None and not df.empty:
+                            return True
+                    except Exception:
+                        pass
+                    if attempt < 2:
+                        time.sleep(0.5)
+
+                return False
             except Exception as e:
                 logger.error(f"连接测试失败: {e}")
                 return False
