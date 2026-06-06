@@ -1,0 +1,26 @@
+{
+    "admin": {
+        "username": "wxzx",
+        "password_hash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
+    },
+    "datasource": {
+        "type": "excel",
+        "current_excel": "",
+        "api": {
+            "base_url": "https://http-10-252-6-31-80.vpn.cqytxy.edu.cn",
+            "username": "",
+            "password": "",
+            "xnm": "2025",
+            "xqm": "12",
+            "xqh_id": "C67E548C4B4553FFE0530100007F06AD"
+        }
+    },
+    "semester": {
+        "start_date": "2026-03-02"
+    },
+    "cache": {
+        "ttl_seconds": 1800,
+        "background_refresh": true,
+        "fallback_to_stale": true
+    }
+}

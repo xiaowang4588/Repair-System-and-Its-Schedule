@@ -108,18 +108,15 @@ def save_config(config: dict):
 
 
 def _write_config_file(config: dict):
-    """原子写入配置文件：先写临时文件，再 rename，避免写入中途被读到半截"""
+    """原子写入配置文件：先写临时文件，再原子替换，避免写入中途被读到半截"""
     dir_name = os.path.dirname(CONFIG_PATH)
     fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=4)
-        # Windows: 目标文件存在时需要先删除才能 rename
-        if os.path.exists(CONFIG_PATH):
-            os.remove(CONFIG_PATH)
-        os.rename(tmp_path, CONFIG_PATH)
+        # os.replace() 是原子操作，不会出现文件不存在的瞬间
+        os.replace(tmp_path, CONFIG_PATH)
     except Exception:
-        # 清理临时文件
         try:
             os.remove(tmp_path)
         except OSError:
