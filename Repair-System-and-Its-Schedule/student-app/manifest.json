@@ -14,7 +14,11 @@
             "port" : 8080,
             "proxy" : {
                 "/api" : {
-                    "target" : "http://106.55.154.144",
+                    "target" : "http://localhost:5000",
+                    "changeOrigin" : true
+                },
+                "/admin" : {
+                    "target" : "http://localhost:5000",
                     "changeOrigin" : true
                 }
             }
