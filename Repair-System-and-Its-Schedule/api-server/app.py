@@ -132,6 +132,9 @@ import admin_config
 import student_manager
 import repair_manager
 
+# 同步管理员密码（.env → config.json）
+admin_config.sync_admin_password()
+
 # 启动诊断
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 _env_exists = os.path.exists(_env_path)

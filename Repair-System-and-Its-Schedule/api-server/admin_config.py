@@ -28,6 +28,26 @@ if not _default_pwd:
     print(f"       Set ADMIN_PASSWORD in .env file to use a fixed password.")
 DEFAULT_ADMIN_PASSWORD = _default_pwd
 
+
+def sync_admin_password():
+    """
+    启动时检查 config.json 中的管理员密码是否与 .env 中的 ADMIN_PASSWORD 一致。
+    如果 .env 设了密码但 config.json 中的哈希不匹配，自动更新 config.json。
+    解决：先启动（随机密码）→ 后加 .env → 密码不匹配的问题。
+    """
+    env_pwd = os.environ.get('ADMIN_PASSWORD', '').strip()
+    if not env_pwd:
+        return  # .env 没设密码，不需要同步
+
+    config = load_config()
+    stored_hash = config.get("admin", {}).get("password_hash", "")
+    env_hash = hashlib.sha256(env_pwd.encode()).hexdigest()
+
+    if stored_hash != env_hash:
+        config["admin"]["password_hash"] = env_hash
+        save_config(config)
+        print(f"[INFO] Admin password synced from .env file.")
+
 # 默认配置
 DEFAULT_CONFIG = {
     "admin": {
