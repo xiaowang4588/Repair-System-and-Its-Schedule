@@ -386,14 +386,19 @@ def admin_excel_upload():
 
         result = admin_config.upload_excel(file, year, semester)
 
-        # Bug6 修复: reload() 现在返回实际加载结果
+        # reload() 返回实际加载结果
         success = cache.reload()
         if success:
-            return jsonify({'status': 'ok', 'message': f'上传成功：{file.filename}'})
+            status_info = cache.get_status()
+            return jsonify({
+                'status': 'ok',
+                'message': f'上传成功：{file.filename}（已加载 {status_info["records"]} 条记录）'
+            })
         else:
+            error_detail = cache._last_error or '未知原因'
             return jsonify({
                 'status': 'warning',
-                'message': f'文件已上传，但加载数据失败，请稍后点击"刷新数据"重试',
+                'message': f'文件已上传，但加载数据失败：{error_detail}',
                 'data': result
             })
     except ValueError as e:
