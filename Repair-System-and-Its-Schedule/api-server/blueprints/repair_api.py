@@ -43,6 +43,16 @@ def _admin_required(f):
     return decorated
 
 
+def _student_required(f):
+    """懒加载装饰器：需要学生登录"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if student_required:
+            return student_required(f)(*args, **kwargs)
+        return f(*args, **kwargs)
+    return decorated
+
+
 @repair_bp.route('/api/repair/auto-fill', methods=['GET'])
 def api_repair_auto_fill():
     """根据教室自动填充报修信息"""
@@ -84,8 +94,9 @@ def api_repair_nearby_rooms():
 
 
 @repair_bp.route('/api/repair/list', methods=['GET'])
+@_student_required
 def api_repair_list():
-    """获取报修记录列表（支持多条件筛选和分页）"""
+    """获取报修记录列表（需要登录，支持多条件筛选和分页）"""
     try:
         params = {
             'status': request.args.get('status', 'all'),
@@ -154,8 +165,9 @@ def api_repair_filter_options():
 
 
 @repair_bp.route('/api/repair/create', methods=['POST'])
+@_student_required
 def api_repair_create():
-    """创建报修记录"""
+    """创建报修记录（需要学生登录）"""
     try:
         data = request.get_json() or {}
         if not data.get('classroom'):
@@ -272,8 +284,9 @@ def api_repair_stats():
 
 
 @repair_bp.route('/api/repair/dashboard-stats', methods=['GET'])
+@_admin_required
 def api_repair_dashboard_stats():
-    """获取大屏综合统计数据"""
+    """获取大屏综合统计数据（需要管理员登录）"""
     try:
         range_type = request.args.get('range', 'semester')
         stats = repair_manager.get_dashboard_stats(range_type)
@@ -283,8 +296,9 @@ def api_repair_dashboard_stats():
 
 
 @repair_bp.route('/api/repair/drill/building', methods=['GET'])
+@_admin_required
 def api_repair_drill_building():
-    """楼栋下钻统计"""
+    """楼栋下钻统计（需要管理员登录）"""
     try:
         building = request.args.get('building', '')
         range_type = request.args.get('range', 'semester')
@@ -295,8 +309,9 @@ def api_repair_drill_building():
 
 
 @repair_bp.route('/api/repair/drill/college', methods=['GET'])
+@_admin_required
 def api_repair_drill_college():
-    """学院下钻统计"""
+    """学院下钻统计（需要管理员登录）"""
     try:
         college = request.args.get('college', '')
         range_type = request.args.get('range', 'semester')
@@ -307,8 +322,9 @@ def api_repair_drill_college():
 
 
 @repair_bp.route('/api/repair/drill/handler', methods=['GET'])
+@_admin_required
 def api_repair_drill_handler():
-    """处理人下钻统计"""
+    """处理人下钻统计（需要管理员登录）"""
     try:
         handler = request.args.get('handler', '')
         range_type = request.args.get('range', 'semester')
@@ -319,8 +335,9 @@ def api_repair_drill_handler():
 
 
 @repair_bp.route('/api/repair/drill/fault-type', methods=['GET'])
+@_admin_required
 def api_repair_drill_fault_type():
-    """故障类型下钻统计"""
+    """故障类型下钻统计（需要管理员登录）"""
     try:
         fault_type = request.args.get('fault_type', '')
         range_type = request.args.get('range', 'semester')
@@ -331,8 +348,9 @@ def api_repair_drill_fault_type():
 
 
 @repair_bp.route('/api/repair/drill/repair', methods=['GET'])
+@_admin_required
 def api_repair_drill_repair():
-    """单条报修详情"""
+    """单条报修详情（需要管理员登录）"""
     try:
         repair_id = request.args.get('id', type=int)
         if not repair_id:
@@ -348,8 +366,9 @@ def api_repair_drill_repair():
 
 
 @repair_bp.route('/api/repair/drill/pending', methods=['GET'])
+@_admin_required
 def api_repair_drill_pending():
-    """待处理工单列表"""
+    """待处理工单列表（需要管理员登录）"""
     try:
         range_type = request.args.get('range', 'semester')
         result = repair_manager.get_pending_list(range_type)
@@ -359,8 +378,9 @@ def api_repair_drill_pending():
 
 
 @repair_bp.route('/api/repair/drill/classroom', methods=['GET'])
+@_admin_required
 def api_repair_drill_classroom():
-    """教室下钻统计"""
+    """教室下钻统计（需要管理员登录）"""
     try:
         classroom = request.args.get('classroom', '')
         range_type = request.args.get('range', 'semester')
@@ -371,8 +391,9 @@ def api_repair_drill_classroom():
 
 
 @repair_bp.route('/api/repair/export', methods=['GET'])
+@_admin_required
 def api_repair_export():
-    """导出报修记录为Excel"""
+    """导出报修记录为Excel（需要管理员登录）"""
     try:
         params = {
             'range_type': request.args.get('range', ''),
@@ -451,8 +472,12 @@ def api_repair_semesters():
 
 
 @repair_bp.route('/api/repair/upload-image', methods=['POST'])
+@_student_required
 def api_repair_upload_image():
-    """上传备注图片"""
+    """上传备注图片（需要学生登录，限制文件类型和大小）"""
+    ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    MAX_SIZE = 10 * 1024 * 1024  # 10MB
+
     try:
         if 'file' not in request.files:
             return jsonify({'status': 'error', 'message': '没有选择文件'}), 400
@@ -461,9 +486,19 @@ def api_repair_upload_image():
         if not file.filename:
             return jsonify({'status': 'error', 'message': '文件名为空'}), 400
 
-        # 保存图片到 uploads/repair_images 目录
+        # 校验扩展名白名单
         import uuid
-        ext = os.path.splitext(file.filename)[1] or '.jpg'
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            return jsonify({'status': 'error', 'message': f'不支持的文件格式{ext}，仅支持 jpg/png/gif/webp'}), 400
+
+        # 校验文件大小
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > MAX_SIZE:
+            return jsonify({'status': 'error', 'message': f'文件大小 {size/1024/1024:.1f}MB 超过限制 10MB'}), 400
+
         filename = f"{uuid.uuid4().hex}{ext}"
 
         upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads', 'repair_images')

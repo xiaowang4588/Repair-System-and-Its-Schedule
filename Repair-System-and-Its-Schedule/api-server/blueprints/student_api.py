@@ -211,25 +211,12 @@ def api_repair_student_delete():
 
 
 @student_bp.route('/api/student/info', methods=['GET'])
+@student_required
 def api_student_info():
-    """获取学生个人信息和报修统计"""
+    """获取学生个人信息和报修统计（仅返回自己的信息）"""
     try:
-        # 优先从token获取学生ID，其次从参数获取
-        student_id = None
-        auth = request.headers.get('Authorization', '')
-        if auth.startswith('Bearer '):
-            from blueprints.student_api import verify_student_token
-            token = auth[7:]
-            result = verify_student_token(token)
-            if result.get('valid'):
-                student_id = result['student_id']
-
-        # 如果token验证失败，尝试从参数获取
-        if not student_id:
-            student_id = request.args.get('student_id', '').strip()
-
-        if not student_id:
-            return jsonify({'status': 'error', 'message': '请提供学号或登录'}), 400
+        # 从token获取学生ID（@student_required 已验证token有效性）
+        student_id = request.student_id
 
         # 获取学生信息
         student = student_manager.get_student_by_id(student_id)

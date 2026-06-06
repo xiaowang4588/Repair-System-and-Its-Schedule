@@ -129,9 +129,9 @@ export default {
         async loadStudentInfo() {
             const studentId = uni.getStorageSync('student_id') || ''
 
-            // 获取个人统计（/api/student/info 不需要 @student_required，有 student_id 兜底）
+            // 获取个人统计（从token获取身份，无需传student_id）
             try {
-                const res = await request('/api/student/info', { student_id: studentId })
+                const res = await request('/api/student/info')
                 if (res && res.status === 'ok' && res.data) {
                     this.studentInfo = res.data
                     if (res.data.stats) {

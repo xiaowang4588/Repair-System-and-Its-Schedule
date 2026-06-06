@@ -908,6 +908,25 @@
 
     <script>
         const API_BASE = (window.location.origin && window.location.origin !== 'null') ? window.location.origin : 'http://localhost:5000';
+
+        // 认证头（从 localStorage 读取 admin_token）
+        function getAuthHeaders() {
+            const token = localStorage.getItem('admin_token');
+            const h = { 'Accept': 'application/json' };
+            if (token) h['Authorization'] = 'Basic ' + token;
+            return h;
+        }
+
+        // 带认证的 fetch 封装
+        function authFetch(url) {
+            return fetch(url, { headers: getAuthHeaders() }).then(r => {
+                if (r.status === 401) {
+                    window.location.href = '/';
+                    throw new Error('未登录');
+                }
+                return r.json();
+            });
+        }
         let currentRange = 'week';
         let charts = [];
 
@@ -979,7 +998,7 @@
                 charts.forEach(c => { try { c.dispose(); } catch (e) { } });
                 charts = [];
 
-                const res = await fetch(`${API_BASE}/api/repair/dashboard-stats?range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/dashboard-stats?range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const s = res.data;
 
@@ -988,7 +1007,7 @@
 
                 // 数据源
                 try {
-                    const sr = await fetch(`${API_BASE}/admin/status`).then(r => r.json());
+                    const sr = await authFetch(`${API_BASE}/admin/status`);
                     if (sr.status === 'ok') document.getElementById('topSource').textContent = `数据来源：${sr.data.source || '--'}`;
                 } catch (e) { }
 
@@ -1234,7 +1253,7 @@
         async function drillBuilding(building) {
             openDrill(building + ' - 楼栋分析');
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/building?building=${encodeURIComponent(building)}&range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/building?building=${encodeURIComponent(building)}&range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
 
@@ -1268,7 +1287,7 @@
         async function drillCollege(college) {
             openDrill(college + ' - 学院分析');
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/college?college=${encodeURIComponent(college)}&range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/college?college=${encodeURIComponent(college)}&range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
 
@@ -1304,7 +1323,7 @@
         async function drillHandler(handler) {
             openDrill(handler + ' - 处理人分析');
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/handler?handler=${encodeURIComponent(handler)}&range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/handler?handler=${encodeURIComponent(handler)}&range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
 
@@ -1336,7 +1355,7 @@
         async function drillFaultType(faultType) {
             openDrill(faultType + ' - 故障类型分析');
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/fault-type?fault_type=${encodeURIComponent(faultType)}&range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/fault-type?fault_type=${encodeURIComponent(faultType)}&range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
 
@@ -1370,7 +1389,7 @@
         async function drillRepair(repairId) {
             openDrill('报修详情');
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/repair?id=${repairId}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/repair?id=${repairId}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
                 const r = d.repair;
@@ -1412,7 +1431,7 @@
         async function drillPending() {
             openDrill('⚠️ 待处理工单');
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/pending?range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/pending?range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
 
@@ -1447,7 +1466,7 @@
         async function drillClassroom(classroom) {
             openDrill(`🏫 ${classroom} - 教室分析`);
             try {
-                const res = await fetch(`${API_BASE}/api/repair/drill/classroom?classroom=${encodeURIComponent(classroom)}&range=${currentRange}`).then(r => r.json());
+                const res = await authFetch(`${API_BASE}/api/repair/drill/classroom?classroom=${encodeURIComponent(classroom)}&range=${currentRange}`);
                 if (res.status !== 'ok') return;
                 const d = res.data;
 
@@ -1613,9 +1632,13 @@
             }
         }
 
-        // 初始化
-        loadData();
-        setInterval(loadData, 60000);
+        // 初始化（检查登录状态）
+        if (!localStorage.getItem('admin_token')) {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#fff;font-size:24px;background:#0a0e27;">请先 <a href="/" style="color:#667eea;margin:0 8px;">登录</a> 后访问大屏</div>';
+        } else {
+            loadData();
+            setInterval(loadData, 60000);
+        }
     </script>
 </body>
 
