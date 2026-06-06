@@ -1,10 +1,11 @@
 <template>
     <view class="page">
-        <view class="login-bg"></view>
         <view class="login-container">
             <view class="login-header">
                 <view class="logo-circle">
-                    <text class="logo-icon">&#x1f6e1;</text>
+                    <view class="logo-shield">
+                        <view class="shield-inner"></view>
+                    </view>
                 </view>
                 <text class="login-title">多媒体报修系统</text>
                 <text class="login-subtitle">重庆移通学院綦江校区</text>
@@ -13,19 +14,17 @@
             <view class="login-form">
                 <view class="form-group">
                     <text class="form-label">学号</text>
-                    <view class="input-wrap">
-                        <input class="form-input" v-model="studentId" placeholder="请输入学号"
-                               @confirm="focusPassword" />
-                    </view>
+                    <input class="form-input" v-model="studentId" placeholder="请输入学号"
+                           @confirm="focusPassword" />
                 </view>
                 <view class="form-group">
                     <text class="form-label">密码</text>
                     <view class="input-wrap">
                         <input class="form-input" v-model="password" placeholder="请输入密码"
                                :password="!showPassword" ref="passwordInput" />
-                        <view class="password-toggle" @click="showPassword = !showPassword">
-                            <text class="toggle-text">{{ showPassword ? '隐藏' : '显示' }}</text>
-                        </view>
+                        <text class="toggle-text" @click="showPassword = !showPassword">
+                            {{ showPassword ? '隐藏' : '显示' }}
+                        </text>
                     </view>
                 </view>
 
@@ -34,7 +33,7 @@
                 </button>
             </view>
 
-            <text class="footer-text">设备报修 / 课表查询 / 空教室</text>
+            <text class="footer-text">设备报修 · 课表查询 · 空教室</text>
         </view>
     </view>
 </template>
@@ -45,60 +44,34 @@ const API_BASE = config.API_BASE
 
 export default {
     data() {
-        return {
-            studentId: '',
-            password: '',
-            showPassword: false,
-            loading: false,
-        }
-    },
-    onLoad() {
-        // 不自动跳转。旧 token 可能因服务器重启失效，
-        // 自动跳转会导致：进首页 → 401 → 踢回登录 → 死循环
+        return { studentId: '', password: '', showPassword: false, loading: false }
     },
     methods: {
-        focusPassword() {
-            this.$refs.passwordInput.focus()
-        },
+        focusPassword() { this.$refs.passwordInput.focus() },
         async login() {
-            if (!this.studentId.trim()) {
-                uni.showToast({ title: '请输入学号', icon: 'none' })
-                return
-            }
-            if (!this.password) {
-                uni.showToast({ title: '请输入密码', icon: 'none' })
-                return
-            }
+            if (!this.studentId.trim()) { uni.showToast({ title: '请输入学号', icon: 'none' }); return }
+            if (!this.password) { uni.showToast({ title: '请输入密码', icon: 'none' }); return }
             this.loading = true
             try {
                 const res = await this.apiPost('/api/student/login', {
-                    student_id: this.studentId.trim(),
-                    password: this.password,
+                    student_id: this.studentId.trim(), password: this.password,
                 })
                 if (res && res.status === 'ok') {
                     uni.setStorageSync('student_token', res.data.token)
                     uni.setStorageSync('student_id', res.data.student_id)
                     uni.setStorageSync('student_name', res.data.name)
                     uni.showToast({ title: '登录成功', icon: 'success' })
-                    setTimeout(() => this.redirectToMain(), 500)
+                    setTimeout(() => uni.reLaunch({ url: '/pages/index/index' }), 500)
                 } else {
                     uni.showToast({ title: (res && res.message) || '学号或密码错误', icon: 'none' })
                 }
-            } catch (e) {
-                uni.showToast({ title: '网络错误', icon: 'none' })
-            } finally {
-                this.loading = false
-            }
-        },
-        redirectToMain() {
-            uni.reLaunch({ url: '/pages/index/index' })
+            } catch (e) { uni.showToast({ title: '网络错误', icon: 'none' }) }
+            finally { this.loading = false }
         },
         apiPost(url, data) {
             return new Promise((resolve, reject) => {
                 uni.request({
-                    url: API_BASE + url,
-                    method: 'POST',
-                    data: data,
+                    url: API_BASE + url, method: 'POST', data,
                     header: { 'Content-Type': 'application/json' },
                     success: (res) => resolve(res.statusCode === 200 ? res.data : null),
                     fail: reject
@@ -112,152 +85,72 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F0F4FF;
+    background: #F5F6F8;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    overflow: hidden;
 }
+.login-container { width: 90%; max-width: 640rpx; }
 
-.login-bg {
-    position: absolute;
-    top: -200rpx;
-    left: -100rpx;
-    width: 700rpx;
-    height: 700rpx;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    opacity: 0.15;
-}
-
-.login-container {
-    width: 90%;
-    max-width: 640rpx;
-    position: relative;
-    z-index: 1;
-}
-
-.login-header {
-    text-align: center;
-    margin-bottom: 60rpx;
-}
+.login-header { text-align: center; margin-bottom: 72rpx; }
 
 .logo-circle {
-    width: 120rpx;
-    height: 120rpx;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.35);
+    width: 120rpx; height: 120rpx; border-radius: 50%;
+    background: #E8F2E9;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 28rpx;
 }
-
-.logo-icon {
-    font-size: 52rpx;
+.logo-shield {
+    width: 44rpx; height: 50rpx;
+    border: 4rpx solid #3D5A3E;
+    border-radius: 6rpx 6rpx 22rpx 22rpx;
+    position: relative;
+}
+.shield-inner {
+    position: absolute; bottom: 8rpx; left: 50%; transform: translateX(-50%);
+    width: 14rpx; height: 14rpx;
+    border: 3rpx solid #3D5A3E;
+    border-radius: 50%;
 }
 
 .login-title {
-    font-size: 44rpx;
-    font-weight: 700;
-    color: #1E293B;
-    display: block;
-    margin-bottom: 12rpx;
-    letter-spacing: 2rpx;
+    font-size: 40rpx; font-weight: 700; color: #1A1D1F;
+    display: block; margin-bottom: 10rpx; letter-spacing: 1rpx;
 }
-
-.login-subtitle {
-    font-size: 24rpx;
-    color: #94A3B8;
-    display: block;
-}
+.login-subtitle { font-size: 24rpx; color: #9CA3AF; display: block; }
 
 .login-form {
-    background: white;
-    border-radius: 24rpx;
+    background: #fff; border-radius: 28rpx;
     padding: 40rpx 36rpx;
-    box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1rpx 3rpx rgba(0,0,0,0.04), 0 12rpx 40rpx rgba(0,0,0,0.04);
 }
-
-.form-group {
-    margin-bottom: 32rpx;
-}
-
-.form-label {
-    font-size: 26rpx;
-    color: #475569;
-    font-weight: 600;
-    margin-bottom: 14rpx;
-    display: block;
-}
-
-.input-wrap {
-    position: relative;
-}
-
+.form-group { margin-bottom: 28rpx; }
+.form-label { font-size: 24rpx; color: #6B7280; font-weight: 600; margin-bottom: 12rpx; display: block; letter-spacing: 0.5rpx; }
+.input-wrap { position: relative; }
 .form-input {
-    width: 100%;
-    height: 92rpx;
-    padding: 0 28rpx;
-    border: 2rpx solid #E2E8F0;
-    border-radius: 16rpx;
-    font-size: 30rpx;
-    color: #1E293B;
-    background: #F8FAFC;
+    width: 100%; height: 92rpx; padding: 0 28rpx;
+    border: 2rpx solid #E5E7EB; border-radius: 16rpx;
+    font-size: 28rpx; color: #1A1D1F; background: #FAFBFC;
     box-sizing: border-box;
-    transition: all 0.2s;
 }
-
-.form-input:focus {
-    border-color: #667eea;
-    background: white;
-    box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
-}
-
-.password-toggle {
-    position: absolute;
-    right: 24rpx;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
+.form-input:focus { border-color: #3D5A3E; background: #fff; }
 .toggle-text {
-    font-size: 24rpx;
-    color: #667eea;
-    font-weight: 500;
+    position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%);
+    font-size: 24rpx; color: #3D5A3E; font-weight: 500;
 }
 
 .login-btn {
-    width: 100%;
-    height: 96rpx;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    font-size: 32rpx;
-    font-weight: 600;
-    border: none;
-    border-radius: 16rpx;
-    margin-top: 16rpx;
-    letter-spacing: 4rpx;
-    box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.35);
+    width: 100%; height: 96rpx;
+    background: #3D5A3E; color: white;
+    font-size: 30rpx; font-weight: 600;
+    border: none; border-radius: 16rpx;
+    margin-top: 12rpx; letter-spacing: 4rpx;
 }
-
-.login-btn:active {
-    transform: translateY(2rpx);
-    box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.25);
-}
-
-.login-btn:disabled {
-    opacity: 0.6;
-}
+.login-btn:active { background: #2D4A2E; }
+.login-btn:disabled { opacity: 0.5; }
 
 .footer-text {
-    display: block;
-    text-align: center;
-    margin-top: 40rpx;
-    font-size: 22rpx;
-    color: #94A3B8;
-    letter-spacing: 2rpx;
+    display: block; text-align: center; margin-top: 48rpx;
+    font-size: 22rpx; color: #9CA3AF; letter-spacing: 1rpx;
 }
 </style>
