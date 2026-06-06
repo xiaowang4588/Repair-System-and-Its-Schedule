@@ -26,23 +26,6 @@ init_log_handler()
 from models import init_db
 init_db()
 
-# 启动诊断
-_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-_env_exists = os.path.exists(_env_path)
-_env_secret = os.environ.get('SECRET_KEY', '')
-_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
-_cfg_exists = os.path.exists(_cfg_path)
-_excel_path = admin_config.get_current_excel_path()
-_excel_exists = os.path.exists(_excel_path) if _excel_path else False
-logger.info("=" * 50)
-logger.info("[STARTUP] .env file: %s", 'OK' if _env_exists else 'MISSING (create from .env.example)')
-logger.info("[STARTUP] SECRET_KEY: %s", ('SET (' + _env_secret[:8] + '...)' if _env_secret else 'NOT SET - will generate random!'))
-logger.info("[STARTUP] config.json: %s", 'OK' if _cfg_exists else 'MISSING (will create default)')
-logger.info("[STARTUP] Excel file: %s", _excel_path if _excel_path else 'NOT CONFIGURED')
-logger.info("[STARTUP] Excel exists: %s", _excel_exists)
-logger.info("[STARTUP] ALLOWED_ORIGINS: %s", os.environ.get('ALLOWED_ORIGINS', 'NOT SET'))
-logger.info("=" * 50)
-
 # 创建 Flask 应用
 app = Flask(__name__)
 
@@ -148,6 +131,23 @@ from cache_manager import CacheManager
 import admin_config
 import student_manager
 import repair_manager
+
+# 启动诊断
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+_env_exists = os.path.exists(_env_path)
+_env_secret = os.environ.get('SECRET_KEY', '')
+_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+_cfg_exists = os.path.exists(_cfg_path)
+_excel_path = admin_config.get_current_excel_path()
+_excel_exists = os.path.exists(_excel_path) if _excel_path else False
+logger.info("=" * 50)
+logger.info("[STARTUP] .env file: %s", 'OK' if _env_exists else 'MISSING (create from .env.example)')
+logger.info("[STARTUP] SECRET_KEY: %s", ('SET (' + _env_secret[:8] + '...)' if _env_secret else 'NOT SET - will generate random!'))
+logger.info("[STARTUP] config.json: %s", 'OK' if _cfg_exists else 'MISSING (will create default)')
+logger.info("[STARTUP] Excel file: %s", _excel_path if _excel_path else 'NOT CONFIGURED')
+logger.info("[STARTUP] Excel exists: %s", _excel_exists)
+logger.info("[STARTUP] ALLOWED_ORIGINS: %s", os.environ.get('ALLOWED_ORIGINS', 'NOT SET'))
+logger.info("=" * 50)
 
 try:
     data_source = create_data_source()
