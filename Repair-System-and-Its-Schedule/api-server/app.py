@@ -13,6 +13,9 @@ import os
 import time
 import logging
 
+# 最先加载 .env 文件，确保后续所有 os.environ.get() 能读到配置
+import config as _config  # config.py 会自动加载 .env 文件到 os.environ
+
 # 初始化日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
