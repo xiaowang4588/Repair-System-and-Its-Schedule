@@ -772,6 +772,121 @@
         }
 
         /* 响应式 */
+        /* 全局 Loading 遮罩 */
+        .global-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 22, 40, 0.85);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        .global-loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-ring {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(0, 212, 255, 0.15);
+            border-top: 3px solid #00D4FF;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: rgba(0, 212, 255, 0.8);
+            font-size: 14px;
+            font-family: "DIN", monospace;
+            letter-spacing: 1px;
+        }
+
+        /* 面板 Loading（局部） */
+        .panel-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(16, 42, 76, 0.6);
+            z-index: 5;
+            border-radius: 10px;
+        }
+
+        .panel-loading .mini-spinner {
+            width: 28px;
+            height: 28px;
+            border: 2px solid rgba(0, 212, 255, 0.15);
+            border-top: 2px solid #00D4FF;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* KPI 骨架屏 */
+        .kpi-skeleton {
+            background: rgba(16, 42, 76, 0.5);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 10px;
+            padding: 14px 18px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-skeleton::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+        }
+
+        .kpi-skeleton-line {
+            height: 12px;
+            background: rgba(0, 212, 255, 0.08);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .kpi-skeleton-line.short {
+            width: 60%;
+        }
+
+        .kpi-skeleton-line.long {
+            width: 90%;
+        }
+
+        .kpi-skeleton-line.value {
+            height: 28px;
+            width: 50%;
+            margin-bottom: 6px;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+
         @media (max-width: 1200px) {
             .main-content {
                 grid-template-columns: 1fr 1fr;
@@ -889,6 +1004,12 @@
         </div>
     </div>
 
+    <!-- 全局 Loading 遮罩 -->
+    <div class="global-loading-overlay" id="globalLoading">
+        <div class="loading-ring"></div>
+        <span class="loading-text">加载中...</span>
+    </div>
+
     <!-- 下钻详情面板 -->
     <div class="drill-overlay" id="drillOverlay">
         <div class="drill-panel">
@@ -972,10 +1093,13 @@
 
         // 时间范围切换
         function switchRange(range) {
+            if (currentRange === range) return;
             currentRange = range;
             document.querySelectorAll('.range-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.range === range);
             });
+            // 清除下钻面板
+            closeDrill();
             loadData();
         }
 
@@ -999,15 +1123,53 @@
             };
         }
 
+        let initialLoad = true;
+
+        // 加载状态控制
+        function showGlobalLoading(show) {
+            const overlay = document.getElementById('globalLoading');
+            if (show) {
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function showSkeletonKPI() {
+            document.getElementById('kpiRow').innerHTML = Array(5).fill(`
+                <div class="kpi-skeleton">
+                    <div class="kpi-skeleton-line short"></div>
+                    <div class="kpi-skeleton-line value"></div>
+                    <div class="kpi-skeleton-line long"></div>
+                </div>
+            `).join('');
+        }
+
         // 加载数据
         async function loadData() {
             try {
-                charts.forEach(c => { try { c.dispose(); } catch (e) { } });
-                charts = [];
+                // 首次加载显示全局 loading；切换范围时显示骨架屏
+                if (initialLoad) {
+                    showGlobalLoading(true);
+                    showSkeletonKPI();
+                }
+
+                // 切换范围时不清除旧图表（保留旧数据直到新数据到达）
+                // 只对非首次加载显示局部 loading
+                if (!initialLoad) {
+                    showSkeletonKPI();
+                }
 
                 const res = await authFetch(`${API_BASE}/api/repair/dashboard-stats?range=${currentRange}`);
-                if (res.status !== 'ok') return;
+                if (res.status !== 'ok') {
+                    if (initialLoad) showGlobalLoading(false);
+                    return;
+                }
                 const s = res.data;
+
+                // 只有新数据到达后才清理旧图表
+                charts.forEach(c => { try { c.dispose(); } catch (e) { } });
+                charts = [];
 
                 // 周次
                 document.getElementById('topWeek').textContent = s.current_week ? `第 ${s.current_week} 周` : '--';
@@ -1145,6 +1307,12 @@
 
             } catch (e) {
                 console.error('加载大屏数据失败:', e);
+            } finally {
+                // 隐藏加载状态
+                if (initialLoad) {
+                    showGlobalLoading(false);
+                    initialLoad = false;
+                }
             }
 
             // 绑定图表下钻点击事件

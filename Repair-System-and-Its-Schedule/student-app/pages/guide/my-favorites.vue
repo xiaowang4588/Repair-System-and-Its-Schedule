@@ -29,10 +29,13 @@
                 <text class="empty-text">还没有收藏任何防坑指南</text>
             </view>
 
-            <view class="loading" v-if="loading"><text>加载中...</text></view>
+            <view class="loading-area" v-if="loading">
+                <view class="spinner-ring"></view>
+                <text>加载中...</text>
+            </view>
 
             <view class="load-more" v-if="records.length > 0">
-                <view v-if="loadingMore" class="loading"><text>加载中...</text></view>
+                <view v-if="loadingMore" class="loading-spin"><view class="mini-spinner"></view><text>加载中...</text></view>
                 <view v-else-if="hasMore" @click="loadMore" class="load-more-btn"><text>加载更多</text></view>
                 <view v-else class="no-more"><text>没有更多了</text></view>
             </view>
@@ -103,28 +106,43 @@ export default {
 </script>
 
 <style scoped>
-.page { min-height: 100vh; background: #F5F7FA; }
+.page { min-height: 100vh; background: var(--color-bg); }
 .container { padding: 24rpx; }
 .stats-bar { padding: 16rpx 0; }
-.stats-text { font-size: 26rpx; color: #999; }
-.guide-card { background: white; border-radius: 16rpx; padding: 28rpx; margin-bottom: 20rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06); }
-.guide-card:active { background: #fafbff; }
+.stats-text { font-size: 26rpx; color: var(--color-text-tertiary); }
+.guide-card {
+    background: var(--color-surface); border-radius: var(--radius-lg); padding: 28rpx;
+    margin-bottom: 16rpx; box-shadow: var(--shadow-sm); border: 1rpx solid var(--color-border-light);
+    transition: all var(--transition-fast);
+}
+.guide-card:active { transform: scale(0.985); box-shadow: var(--shadow-xs); }
 .card-header { display: flex; align-items: center; margin-bottom: 16rpx; }
-.avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #4F7CFF; color: white; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 600; margin-right: 16rpx; flex-shrink: 0; }
+.avatar {
+    width: 64rpx; height: 64rpx; border-radius: 50%;
+    background: var(--color-primary-gradient); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28rpx; font-weight: 600; margin-right: 16rpx; flex-shrink: 0;
+    box-shadow: 0 3rpx 10rpx rgba(108, 92, 231, 0.2);
+}
 .user-info { flex: 1; }
-.user-name { font-size: 28rpx; font-weight: 600; color: #333; display: block; }
-.post-time { font-size: 20rpx; color: #999; display: block; }
-.unfav-btn { font-size: 24rpx; color: #faad14; padding: 4rpx 16rpx; border: 1rpx solid #faad14; border-radius: 6rpx; white-space: nowrap; }
+.user-name { font-size: 28rpx; font-weight: 600; color: var(--color-text); display: block; }
+.post-time { font-size: 20rpx; color: var(--color-text-tertiary); display: block; }
+.unfav-btn { font-size: 24rpx; color: var(--color-warning); padding: 6rpx 18rpx; border: 1rpx solid var(--color-warning-light); border-radius: var(--radius-xs); white-space: nowrap; font-weight: 500; }
 .card-content { margin-bottom: 12rpx; }
-.content-text { font-size: 28rpx; color: #333; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.card-tags { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.device-tag { padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; background: #EEF2FF; color: #4F7CFF; }
-.location-tag { padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; background: #F0F9FF; color: #1890ff; }
+.content-text { font-size: 28rpx; color: var(--color-text); line-height: 1.55; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 10rpx; }
+.device-tag { padding: 4rpx 14rpx; border-radius: 6rpx; font-size: 22rpx; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 500; }
+.location-tag { padding: 4rpx 14rpx; border-radius: 6rpx; font-size: 22rpx; background: var(--color-info-bg); color: var(--color-info); font-weight: 500; }
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
-.empty-icon { font-size: 80rpx; margin-bottom: 24rpx; }
-.empty-text { font-size: 28rpx; color: #999; }
-.loading { text-align: center; padding: 40rpx 0; font-size: 26rpx; color: #999; }
+.empty-icon { font-size: 80rpx; margin-bottom: 24rpx; opacity: 0.5; }
+.empty-text { font-size: 28rpx; color: var(--color-text-tertiary); }
+.loading-area { display: flex; flex-direction: column; align-items: center; padding: 60rpx 0; gap: 12rpx; font-size: 26rpx; color: var(--color-text-tertiary); }
+.spinner-ring { width: 44rpx; height: 44rpx; border: 3rpx solid var(--color-border); border-top: 3rpx solid var(--color-primary); border-radius: 50%; animation: fav-spin 0.7s linear infinite; }
+@keyframes fav-spin { to { transform: rotate(360deg); } }
+.loading-spin { display: flex; align-items: center; justify-content: center; gap: 8rpx; padding: 20rpx 0; font-size: 26rpx; color: var(--color-text-tertiary); }
+.mini-spinner { width: 28rpx; height: 28rpx; border: 2rpx solid var(--color-border); border-top: 2rpx solid var(--color-primary); border-radius: 50%; animation: fav-spin 0.7s linear infinite; }
+.loading { text-align: center; padding: 40rpx 0; font-size: 26rpx; color: var(--color-text-tertiary); }
 .load-more { padding: 20rpx 0; text-align: center; }
-.load-more-btn { padding: 20rpx; font-size: 28rpx; color: #4F7CFF; }
-.no-more { padding: 20rpx; font-size: 26rpx; color: #999; }
+.load-more-btn { padding: 20rpx; font-size: 28rpx; color: var(--color-primary); font-weight: 500; }
+.no-more { padding: 20rpx; font-size: 26rpx; color: var(--color-text-tertiary); }
 </style>

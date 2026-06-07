@@ -62,9 +62,12 @@ _file_handler = None
 
 
 def get_log_dir():
-    """获取日志目录"""
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    log_dir = os.path.join(base_dir, 'logs')
+    """获取日志目录（api-server/logs/）"""
+    # __file__ → api-server/utils/log_manager.py
+    # 往上一级到 api-server/，再往上一级到项目根目录
+    utils_dir = os.path.dirname(os.path.abspath(__file__))
+    api_server_dir = os.path.dirname(utils_dir)
+    log_dir = os.path.join(api_server_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
 

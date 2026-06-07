@@ -177,106 +177,63 @@ export default {
 </script>
 
 <style scoped>
-.page {
-    min-height: 100vh;
-    background: #F5F7FA;
-}
+.page { min-height: 100vh; background: var(--color-bg); }
+.container { padding: 24rpx; }
 
-.container {
-    padding: 24rpx;
+.card {
+    background: var(--color-surface); border-radius: var(--radius-lg); padding: 28rpx;
+    margin-bottom: 20rpx; box-shadow: var(--shadow-sm); border: 1rpx solid var(--color-border-light);
 }
+.card-title { font-size: 30rpx; font-weight: 700; color: var(--color-text); margin-bottom: 24rpx; padding-bottom: 16rpx; border-bottom: 1rpx solid var(--color-divider); }
+
+.form-group { margin-bottom: 24rpx; }
+.form-label { font-size: 26rpx; color: var(--color-text-secondary); margin-bottom: 10rpx; display: block; font-weight: 500; }
 
 .form-select {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    height: 88rpx;
-    padding: 0 24rpx;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
-    font-size: 28rpx;
-    background: #fafafa;
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; height: 88rpx; padding: 0 24rpx; border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm); font-size: 28rpx; color: var(--color-text);
+    background: var(--color-bg-secondary); box-sizing: border-box;
 }
+.arrow { font-size: 20rpx; color: var(--color-text-tertiary); }
 
-.arrow {
-    font-size: 24rpx;
-    color: #999;
-}
-
-.section-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16rpx;
-}
-
+.section-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }
 .section-item {
-    height: 80rpx;
-    line-height: 80rpx;
-    text-align: center;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
-    font-size: 28rpx;
-    color: #666;
-    background: white;
+    height: 76rpx; line-height: 76rpx; text-align: center;
+    border: 2rpx solid var(--color-border); border-radius: var(--radius-sm);
+    font-size: 26rpx; color: var(--color-text-secondary); background: var(--color-bg-secondary);
+    transition: all var(--transition-fast); font-weight: 500;
 }
+.section-item.active { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); font-weight: 600; }
 
-.section-item.active {
-    background: #4F7CFF;
-    color: white;
-    border-color: #4F7CFF;
+.btn-primary {
+    width: 100%; height: 88rpx; line-height: 88rpx;
+    background: var(--color-primary-gradient); color: white; border: none;
+    border-radius: var(--radius-md); font-size: 30rpx; font-weight: 600;
+    box-shadow: 0 4rpx 16rpx rgba(108,92,231,0.25); transition: all var(--transition-fast);
 }
+.btn-primary:active { transform: translateY(2rpx) scale(0.98); }
 
-.result-count {
-    font-size: 28rpx;
-    color: #888;
-    margin-bottom: 24rpx;
-}
+.result-count { font-size: 28rpx; color: var(--color-text-secondary); margin-bottom: 24rpx; }
+.count-num { color: var(--color-primary); font-weight: 700; font-size: 32rpx; }
 
-.count-num {
-    color: #4F7CFF;
-    font-weight: 600;
-    font-size: 32rpx;
-}
-
-.building-section {
-    margin-bottom: 32rpx;
-}
-
+.building-section { margin-bottom: 32rpx; }
 .building-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: #333;
-    padding: 16rpx 0;
-    border-bottom: 1rpx solid #e8e8e8;
-    margin-bottom: 16rpx;
+    font-size: 28rpx; font-weight: 700; color: var(--color-text);
+    padding: 14rpx 0; border-bottom: 1rpx solid var(--color-divider); margin-bottom: 16rpx;
 }
 
-.room-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16rpx;
-}
-
+.room-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; }
 .room-item {
-    background: white;
-    border: 1rpx solid #b7eb8f;
-    border-radius: 12rpx;
-    padding: 16rpx;
-    text-align: center;
+    background: var(--color-success-bg); border: 1rpx solid var(--color-success-light);
+    border-radius: var(--radius-sm); padding: 20rpx 12rpx; text-align: center;
+    transition: all var(--transition-fast);
 }
+.room-item:active { transform: scale(0.95); }
+.room-name { font-size: 28rpx; color: var(--color-success); font-weight: 600; display: block; }
+.room-type { font-size: 22rpx; color: var(--color-text-tertiary); display: block; margin-top: 4rpx; }
 
-.room-name {
-    font-size: 28rpx;
-    color: #389e0d;
-    font-weight: 500;
-    display: block;
-}
-
-.room-type {
-    font-size: 22rpx;
-    color: #999;
-    display: block;
-    margin-top: 4rpx;
-}
+.empty { display: flex; flex-direction: column; align-items: center; padding: 60rpx 0; }
+.empty-icon { font-size: 64rpx; margin-bottom: 16rpx; opacity: 0.45; }
+.empty-text { font-size: 26rpx; color: var(--color-text-tertiary); }
 </style>

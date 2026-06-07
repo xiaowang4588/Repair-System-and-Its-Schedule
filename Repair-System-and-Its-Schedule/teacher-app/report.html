@@ -372,6 +372,97 @@
             color: #888;
         }
 
+        /* 执行摘要 */
+        .executive-summary {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid #667eea;
+        }
+        .executive-summary h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .executive-summary .finding {
+            margin: 8px 0;
+            padding-left: 16px;
+            line-height: 1.8;
+        }
+
+        /* 设备健康度 */
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .health-card {
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .health-card.danger {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+        }
+        .health-card.warning {
+            background: #fffaf0;
+            border: 1px solid #fed7aa;
+        }
+        .health-card.attention {
+            background: #f0f7ff;
+            border: 1px solid #bfdbfe;
+        }
+        .health-card.healthy {
+            background: #f0fff4;
+            border: 1px solid #bbf7d0;
+        }
+        .health-card .score {
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .health-card.danger .score { color: #e74c3c; }
+        .health-card.warning .score { color: #f39c12; }
+        .health-card.attention .score { color: #3498db; }
+        .health-card.healthy .score { color: #27ae60; }
+        .health-card .room {
+            font-size: 14px;
+            color: #333;
+            margin-top: 4px;
+        }
+        .health-card .deductions {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        /* 楼栋画像指示器 */
+        .profile-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        .profile-indicator.high { background: #e74c3c; }
+        .profile-indicator.normal { background: #27ae60; }
+        .profile-indicator.low { background: #3498db; }
+
+        /* 建议元信息 */
+        .advice-item .meta {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .advice-item .meta .priority {
+            background: #eee;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
         /* 趋势 */
         .trend-up {
             color: #e74c3c;
@@ -659,6 +750,11 @@
             const repairsByClassroom = data.repairs_by_classroom || {};
             const comparison = data.week_comparison || {};
             const advice = data.advice || [];
+            const trend = data.multi_week_trend || {};
+            const health = data.equipment_health || {};
+            const profile = data.building_profile || {};
+            const rtm = data.response_time_matrix || {};
+            const workload = data.workload_analysis || {};
 
             // 计算趋势
             const totalChange = vsLast.total_change || 0;
@@ -781,6 +877,75 @@
                 `;
             });
 
+            // 执行摘要
+            const execFindings = [];
+            if (overview.total_count > 0) execFindings.push(`本周共收到报修${overview.total_count}件，处理率${overview.resolved_rate || 0}%`);
+            if (trend.trend_label && trend.trend_label.includes('上升')) execFindings.push(`报修趋势${trend.trend_label}，需关注增长态势`);
+            else if (trend.trend_label && trend.trend_label.includes('下降')) execFindings.push(`报修趋势${trend.trend_label}，情况有所好转`);
+            const unhealthyCount = health.summary?.unhealthy_count || 0;
+            if (unhealthyCount > 0) execFindings.push(`${unhealthyCount}间教室设备健康度偏低，需安排检修`);
+            if (overview.pending_count > 0) execFindings.push(`尚有${overview.pending_count}条待处理工单（含${overview.unhandled_count || 0}条未处理）`);
+            const attnBuildings = profile.attention_buildings || [];
+            if (attnBuildings.length > 0) execFindings.push(`${attnBuildings.slice(0, 3).join('、')}楼栋多项指标异常，需专项排查`);
+
+            // 设备健康卡片
+            let healthCardsHtml = '';
+            const problems = health.this_week_problems || [];
+            problems.slice(0, 6).forEach(item => {
+                healthCardsHtml += `
+                    <div class="health-card ${esc(item.health_level || 'healthy')}">
+                        <div class="score">${esc(item.health_score || 0)}</div>
+                        <div class="room">📍 ${esc(item.classroom)}</div>
+                        <div class="deductions">${esc((item.deductions || []).slice(0, 2).join('; '))}</div>
+                    </div>`;
+            });
+
+            // 楼栋画像
+            let profileRows = '';
+            const profiles = profile.profiles || {};
+            for (const [building, info] of Object.entries(profiles)) {
+                const extCls = info.external_vs_avg === 'high' ? 'high' : 'normal';
+                const replCls = info.replace_vs_avg === 'high' ? 'high' : 'normal';
+                const procCls = info.process_vs_avg === 'high' ? 'high' : (info.process_vs_avg === 'low' ? 'low' : 'normal');
+                profileRows += `
+                    <tr>
+                        <td><strong>${esc(building)}</strong></td>
+                        <td>${esc(info.this_week_count || 0)}/${esc(info.semester_total || 0)}</td>
+                        <td>${esc((info.typical_fault_label || '').substring(0, 40))}</td>
+                        <td><span class="profile-indicator ${extCls}"></span>${esc(info.external_ratio || 0)}%</td>
+                        <td><span class="profile-indicator ${replCls}"></span>${esc(info.replace_ratio || 0)}%</td>
+                        <td><span class="profile-indicator ${procCls}"></span>${esc(info.avg_process_days || 0)}天</td>
+                    </tr>`;
+            }
+
+            // 响应时效
+            let responseRows = '';
+            (rtm.by_handler || []).forEach(h => {
+                const onTimeCls = (h.on_time_rate || 0) >= 80 ? 'badge-success' : ((h.on_time_rate || 0) >= 50 ? 'badge-warning' : 'badge-danger');
+                responseRows += `
+                    <tr>
+                        <td>${esc(h.handler)}</td>
+                        <td>${esc(h.total || 0)}</td>
+                        <td>${esc(h.completed_rate || 0)}%</td>
+                        <td>${esc(h.avg_process_days || 0)}天</td>
+                        <td><span class="badge ${onTimeCls}">${esc(h.on_time_rate || 0)}%</span></td>
+                        <td>${esc(h.classroom_count || 0)}</td>
+                    </tr>`;
+            });
+
+            // 工作负载表格
+            let workloadRows = '';
+            (workload.handlers || []).forEach(h => {
+                workloadRows += `
+                    <tr>
+                        <td>${esc(h.handler)}</td>
+                        <td>${esc(h.semester_total || 0)}</td>
+                        <td>${esc(h.completed_rate || 0)}%</td>
+                        <td>${esc(h.pending || 0)}</td>
+                        <td>${esc((h.daily_avg || 0).toFixed(2))}</td>
+                    </tr>`;
+            });
+
             return `
                 <div class="report-header">
                     <h1>重庆移通学院綦江校区</h1>
@@ -789,9 +954,20 @@
                 </div>
 
                 <div class="report-content">
-                    <!-- 一、本周概览 -->
+                    <!-- 执行摘要 -->
                     <div class="section">
-                        <div class="section-title">一、本周概览</div>
+                        <div class="section-title">📋 执行摘要</div>
+                        <div class="executive-summary">
+                            <p>本报告覆盖${esc(data.date_range?.label)}的运维数据。主要发现：</p>
+                            <div class="finding">
+                                ${execFindings.length > 0 ? execFindings.map(f => `<p>• ${f}</p>`).join('') : '<p>本周运维情况正常，无特别关注事项。</p>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 一、核心指标 -->
+                    <div class="section">
+                        <div class="section-title">一、核心指标（环比上周）</div>
                         <div class="kpi-grid">
                             <div class="kpi-card">
                                 <div class="value">${esc(overview.total_count || 0)}</div>
@@ -811,20 +987,55 @@
                                 <div class="label">处理率</div>
                                 <div class="change ${rateClass}">较上周 ${rateChange > 0 ? '+' : ''}${esc(rateChange)}%</div>
                             </div>
+                            <div class="kpi-card">
+                                <div class="value">${esc(overview.external_teacher_count || 0)}</div>
+                                <div class="label">外聘教师报修</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${esc(overview.device_replace_count || 0)}</div>
+                                <div class="label">设备更换</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${esc(overview.classroom_count || 0)}</div>
+                                <div class="label">涉及教室</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${esc(overview.building_count || 0)}</div>
+                                <div class="label">涉及楼栋</div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 二、本周报修明细 -->
+                    <!-- 二、多周趋势 -->
                     <div class="section">
-                        <div class="section-title">二、本周报修明细</div>
+                        <div class="section-title">二、近${trend.week_count || 4}周趋势
+                            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">${esc(trend.summary || '')}</span>
+                        </div>
+                        <div class="chart-container" id="trendChart"></div>
+                    </div>
+
+                    <!-- 三、设备健康度 -->
+                    <div class="section">
+                        <div class="section-title">三、设备健康度
+                            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">
+                                全校均分 ${esc(health.summary?.avg_score || 0)}，${esc(unhealthyCount)} 间不健康
+                            </span>
+                        </div>
+                        ${healthCardsHtml ? `<div class="health-grid">${healthCardsHtml}</div>` : '<p style="color:#27ae60">✅ 本周所有教室设备健康度正常</p>'}
+                        ${healthCardsHtml ? '<p style="color:#999;font-size:13px;">仅显示本周有报修且健康度偏低的教室</p>' : ''}
+                    </div>
+
+                    <!-- 四、本周报修明细 -->
+                    <div class="section">
+                        <div class="section-title">四、本周报修明细</div>
                         ${classroomHtml || '<p style="color:#999">本周暂无报修记录</p>'}
                     </div>
 
-                    <!-- 三、周对比分析 -->
+                    <!-- 五、周对比分析 -->
                     <div class="section">
-                        <div class="section-title">三、周对比分析</div>
+                        <div class="section-title">五、周对比分析</div>
 
-                        <h4 style="margin-bottom: 12px;">3.1 整体对比</h4>
+                        <h4 style="margin-bottom: 12px;">5.1 整体对比</h4>
                         <table>
                             <thead>
                                 <tr>
@@ -840,7 +1051,7 @@
                             </tbody>
                         </table>
 
-                        <h4 style="margin: 24px 0 12px;">3.2 故障类型对比</h4>
+                        <h4 style="margin: 24px 0 12px;">5.2 故障类型对比</h4>
                         <table>
                             <thead>
                                 <tr>
@@ -856,7 +1067,7 @@
                             </tbody>
                         </table>
 
-                        <h4 style="margin: 24px 0 12px;">3.3 楼栋对比</h4>
+                        <h4 style="margin: 24px 0 12px;">5.3 楼栋对比</h4>
                         <table>
                             <thead>
                                 <tr>
@@ -873,27 +1084,66 @@
                         </table>
                     </div>
 
-                    <!-- 四、故障分析 -->
+                    <!-- 六、楼栋特征画像 -->
                     <div class="section">
-                        <div class="section-title">四、故障分析</div>
+                        <div class="section-title">六、楼栋特征画像</div>
+                        <table>
+                            <thead>
+                                <tr><th>楼栋</th><th>本周/学期</th><th>典型故障模式</th><th>外聘比</th><th>更换率</th><th>平均处理</th></tr>
+                            </thead>
+                            <tbody>${profileRows}</tbody>
+                        </table>
+                        <p style="color:#999;font-size:12px;margin-top:8px;">●红色 = 高于全校均值 ●绿色 = 正常 ●蓝色 = 低于均值</p>
+                    </div>
+
+                    <!-- 七、故障分析 -->
+                    <div class="section">
+                        <div class="section-title">七、故障分析</div>
                         <div class="chart-container" id="faultChart"></div>
                     </div>
 
-                    <!-- 五、区域分析 -->
+                    <!-- 八、区域分析 -->
                     <div class="section">
-                        <div class="section-title">五、区域分析</div>
+                        <div class="section-title">八、区域分析</div>
                         <div class="chart-container" id="buildingChart"></div>
                     </div>
 
-                    <!-- 六、时间分析 -->
+                    <!-- 九、响应时效 -->
                     <div class="section">
-                        <div class="section-title">六、时间分析</div>
+                        <div class="section-title">九、响应时效分析</div>
+                        <div class="chart-container" id="responseChart"></div>
+                        <table>
+                            <thead>
+                                <tr><th>处理人</th><th>总量</th><th>完成率</th><th>平均天数</th><th>按时率</th><th>覆盖教室</th></tr>
+                            </thead>
+                            <tbody>${responseRows}</tbody>
+                        </table>
+                    </div>
+
+                    <!-- 十、时间分析 -->
+                    <div class="section">
+                        <div class="section-title">十、时间分析</div>
                         <div class="chart-container" id="weekdayChart"></div>
                     </div>
 
-                    <!-- 七、智能建议 -->
+                    <!-- 十一、工作负载 -->
                     <div class="section">
-                        <div class="section-title">七、智能建议</div>
+                        <div class="section-title">十一、工作负载
+                            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">${esc(workload.balance_assessment || '')}</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr><th>处理人</th><th>学期总量</th><th>完成率</th><th>待处理</th><th>日均</th></tr>
+                            </thead>
+                            <tbody>${workloadRows}</tbody>
+                        </table>
+                    </div>
+
+                    <!-- 十二、智能建议 -->
+                    <div class="section">
+                        <div class="section-title">十二、智能建议
+                            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">共${advice.length}条，按优先级排序</span>
+                        </div>
                         ${adviceHtml || '<p style="color:#999">暂无建议</p>'}
                     </div>
                 </div>
@@ -904,19 +1154,35 @@
         function renderMonthlyReport(data) {
             const overview = data.overview || {};
             const advice = data.advice || [];
+            const profile = data.building_profile || {};
+            const health = data.equipment_health || {};
+            const workload = data.workload_analysis || {};
 
             let adviceHtml = '';
             advice.forEach(item => {
                 const level = item.level || 'info';
                 const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
+                const priority = item.priority || 5;
+                const impact = item.impact || 'medium';
+                const impactLabels = { high: '🔴 高影响', medium: '🟡 中影响', low: '🟢 低影响' };
                 adviceHtml += `
                     <div class="advice-item ${esc(level)}">
-                        <div class="title">${icons[level] || 'ℹ️'} ${esc(item.title)}</div>
+                        <div class="title">${icons[level] || 'ℹ️'} [${esc(item.category || '')}] ${esc(item.title)}</div>
                         <div class="content">${esc(item.content)}</div>
                         <div class="action">💡 ${esc(item.action)}</div>
+                        <div class="meta">
+                            <span class="priority">优先级: ${'■'.repeat(Math.min(priority, 10))}${'□'.repeat(Math.max(0, 10 - priority))}</span>
+                            <span>${impactLabels[impact] || ''}</span>
+                        </div>
                     </div>
                 `;
             });
+
+            let profileRows = '';
+            const profiles = profile.profiles || {};
+            for (const [building, info] of Object.entries(profiles)) {
+                profileRows += `<tr><td><strong>${esc(building)}</strong></td><td>${esc(info.semester_total || 0)}</td><td>${esc((info.typical_fault_label || '').substring(0, 40))}</td><td>${esc(info.avg_process_days || 0)}天</td></tr>`;
+            }
 
             return `
                 <div class="report-header">
@@ -949,7 +1215,25 @@
                     </div>
 
                     <div class="section">
-                        <div class="section-title">二、智能建议</div>
+                        <div class="section-title">二、楼栋特征</div>
+                        <table>
+                            <thead><tr><th>楼栋</th><th>本月报修</th><th>典型故障</th><th>平均处理</th></tr></thead>
+                            <tbody>${profileRows}</tbody>
+                        </table>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">三、工作负载</div>
+                        <table>
+                            <thead><tr><th>处理人</th><th>本月总量</th><th>完成率</th><th>待处理</th></tr></thead>
+                            <tbody>
+                                ${(workload.handlers || []).map(h => `<tr><td>${esc(h.handler)}</td><td>${esc(h.semester_total || 0)}</td><td>${esc(h.completed_rate || 0)}%</td><td>${esc(h.pending || 0)}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">四、智能建议</div>
                         ${adviceHtml || '<p style="color:#999">暂无建议</p>'}
                     </div>
                 </div>
@@ -960,19 +1244,34 @@
         function renderSemesterReport(data) {
             const overview = data.overview || {};
             const advice = data.advice || [];
+            const profile = data.building_profile || {};
+            const workload = data.workload_analysis || {};
 
             let adviceHtml = '';
             advice.forEach(item => {
                 const level = item.level || 'info';
                 const icons = { alert: '🚨', warning: '⚠️', info: 'ℹ️' };
+                const priority = item.priority || 5;
+                const impact = item.impact || 'medium';
+                const impactLabels = { high: '🔴 高影响', medium: '🟡 中影响', low: '🟢 低影响' };
                 adviceHtml += `
                     <div class="advice-item ${esc(level)}">
-                        <div class="title">${icons[level] || 'ℹ️'} ${esc(item.title)}</div>
+                        <div class="title">${icons[level] || 'ℹ️'} [${esc(item.category || '')}] ${esc(item.title)}</div>
                         <div class="content">${esc(item.content)}</div>
                         <div class="action">💡 ${esc(item.action)}</div>
+                        <div class="meta">
+                            <span class="priority">优先级: ${'■'.repeat(Math.min(priority, 10))}${'□'.repeat(Math.max(0, 10 - priority))}</span>
+                            <span>${impactLabels[impact] || ''}</span>
+                        </div>
                     </div>
                 `;
             });
+
+            let profileRows = '';
+            const profiles = profile.profiles || {};
+            for (const [building, info] of Object.entries(profiles)) {
+                profileRows += `<tr><td><strong>${esc(building)}</strong></td><td>${esc(info.semester_total || 0)}</td><td>${esc((info.typical_fault_label || '').substring(0, 40))}</td><td>${esc(info.avg_process_days || 0)}天</td></tr>`;
+            }
 
             return `
                 <div class="report-header">
@@ -994,12 +1293,20 @@
                                 <div class="label">已处理</div>
                             </div>
                             <div class="kpi-card">
+                                <div class="value">${esc(overview.resolved_rate || 0)}%</div>
+                                <div class="label">处理率</div>
+                            </div>
+                            <div class="kpi-card">
                                 <div class="value">${esc(overview.classroom_count || 0)}</div>
                                 <div class="label">涉及教室</div>
                             </div>
                             <div class="kpi-card">
                                 <div class="value">${esc(overview.building_count || 0)}</div>
                                 <div class="label">涉及楼栋</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value">${esc(overview.college_count || 0)}</div>
+                                <div class="label">涉及学院</div>
                             </div>
                         </div>
                     </div>
@@ -1010,7 +1317,27 @@
                     </div>
 
                     <div class="section">
-                        <div class="section-title">三、智能建议</div>
+                        <div class="section-title">三、楼栋特征</div>
+                        <table>
+                            <thead><tr><th>楼栋</th><th>学期报修</th><th>典型故障</th><th>平均处理</th></tr></thead>
+                            <tbody>${profileRows}</tbody>
+                        </table>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">四、工作负载</div>
+                        <table>
+                            <thead><tr><th>处理人</th><th>学期总量</th><th>完成率</th><th>待处理</th></tr></thead>
+                            <tbody>
+                                ${(workload.handlers || []).map(h => `<tr><td>${esc(h.handler)}</td><td>${esc(h.semester_total || 0)}</td><td>${esc(h.completed_rate || 0)}%</td><td>${esc(h.pending || 0)}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">五、智能建议
+                            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">共${advice.length}条</span>
+                        </div>
                         ${adviceHtml || '<p style="color:#999">暂无建议</p>'}
                     </div>
                 </div>
@@ -1022,6 +1349,27 @@
             const fault = data.fault_analysis || {};
             const area = data.area_analysis || {};
             const timeAnalysis = data.time_analysis || {};
+            const trend = data.multi_week_trend || {};
+            const rtm = data.response_time_matrix || {};
+
+            // 多周趋势折线图
+            const trendChart = echarts.init(document.getElementById('trendChart'));
+            const trendWeeks = (trend.weeks || []).map(w => w.week);
+            const trendTotal = (trend.weeks || []).map(w => w.total);
+            const trendResolved = (trend.weeks || []).map(w => w.resolved);
+            const trendPending = (trend.weeks || []).map(w => w.pending);
+            trendChart.setOption({
+                title: { text: `报修趋势（近${trend.week_count || 4}周）`, left: 'center' },
+                tooltip: { trigger: 'axis' },
+                legend: { data: ['报修总量', '已处理', '待处理'], bottom: 0 },
+                xAxis: { type: 'category', data: trendWeeks },
+                yAxis: { type: 'value', name: '数量' },
+                series: [
+                    { name: '报修总量', type: 'line', data: trendTotal, smooth: true, itemStyle: { color: '#667eea' }, areaStyle: { opacity: 0.1 } },
+                    { name: '已处理', type: 'line', data: trendResolved, smooth: true, itemStyle: { color: '#27ae60' } },
+                    { name: '待处理', type: 'line', data: trendPending, smooth: true, itemStyle: { color: '#e74c3c' } }
+                ]
+            });
 
             // 故障类型饼图
             const faultChart = echarts.init(document.getElementById('faultChart'));
@@ -1061,6 +1409,23 @@
                 }]
             });
 
+            // 响应时效柱状图
+            const responseChart = echarts.init(document.getElementById('responseChart'));
+            const handlerNames = (rtm.by_handler || []).map(h => h.handler);
+            const handlerDays = (rtm.by_handler || []).map(h => h.avg_process_days);
+            responseChart.setOption({
+                title: { text: '处理人平均响应天数', left: 'center' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: handlerNames, axisLabel: { rotate: 30 } },
+                yAxis: { type: 'value', name: '天数' },
+                series: [{
+                    type: 'bar',
+                    data: handlerDays,
+                    itemStyle: { color: '#f39c12', borderRadius: [4, 4, 0, 0] },
+                    markLine: { data: [{ yAxis: 2, label: { formatter: '2天标准' }, lineStyle: { color: '#e74c3c', type: 'dashed' } }] }
+                }]
+            });
+
             // 周几分布柱状图
             const weekdayChart = echarts.init(document.getElementById('weekdayChart'));
             const weekdayDist = timeAnalysis.weekday_distribution || {};
@@ -1083,8 +1448,10 @@
 
             // 响应式
             window.addEventListener('resize', function () {
+                trendChart.resize();
                 faultChart.resize();
                 buildingChart.resize();
+                responseChart.resize();
                 weekdayChart.resize();
             });
         }

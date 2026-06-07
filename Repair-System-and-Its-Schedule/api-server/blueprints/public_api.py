@@ -143,15 +143,15 @@ def api_query():
 
         filtered = df[mask]
         results = []
-        for _, row in filtered.iterrows():
+        for row in filtered.itertuples(index=False):
             results.append({
-                "course_name": row["课程名称"],
-                "teacher": row["姓名"],
-                "teacher_id": row["教工号"],
-                "college": row["开课学院"],
-                "class": row["教学班组成"],
-                "time": row["上课时间"],
-                "classroom": row["上课地点"]
+                "course_name": row.课程名称,
+                "teacher": row.姓名,
+                "teacher_id": row.教工号,
+                "college": row.开课学院,
+                "class": row.教学班组成,
+                "time": row.上课时间,
+                "classroom": row.上课地点
             })
 
         return jsonify({'status': 'ok', 'data': results, 'total': len(results)})
@@ -170,17 +170,17 @@ def _query_by_keyword(filter_col: str, keyword: str, error_msg: str):
     filtered = df[mask]
 
     results = []
-    for _, row in filtered.iterrows():
+    for row in filtered.itertuples(index=False):
         results.append({
-            "course_name": row["课程名称"],
-            "teacher": row["姓名"],
-            "teacher_id": row["教工号"],
-            "college": row["开课学院"],
-            "class": row["教学班组成"],
-            "time": row["上课时间"],
-            "classroom": row["上课地点"],
-            "day_of_week": row["星期几"],
-            "section": row["上课节次"]
+            "course_name": row.课程名称,
+            "teacher": row.姓名,
+            "teacher_id": row.教工号,
+            "college": row.开课学院,
+            "class": row.教学班组成,
+            "time": row.上课时间,
+            "classroom": row.上课地点,
+            "day_of_week": row.星期几,
+            "section": row.上课节次
         })
 
     return jsonify({'status': 'ok', 'data': results, 'total': len(results)})
@@ -251,16 +251,16 @@ def api_query_weekly():
         for day in range(1, 8):
             day_data = filtered_df[filtered_df['星期几'] == str(day)]
             section_map = {}
-            for _, row in day_data.iterrows():
-                section = str(row['上课节次']).strip()
+            for row in day_data.itertuples(index=False):
+                section = str(row.上课节次).strip()
                 if not section:
                     continue
                 if section not in section_map:
                     section_map[section] = []
                 section_map[section].append({
-                    'course_name': row['课程名称'],
-                    'teacher': row['姓名'],
-                    'classroom': row['上课地点'],
+                    'course_name': row.课程名称,
+                    'teacher': row.姓名,
+                    'classroom': row.上课地点,
                 })
             weekly_data[day] = section_map
 
@@ -385,9 +385,9 @@ def api_buildings():
             df = cache.get_df()
             logger.info(f"[BUILDINGS] DataFrame 行数: {len(df)}, 列: {list(df.columns)}")
             buildings = sorted(set(
-                extract_building_name(str(row['上课地点']))
-                for _, row in df.iterrows()
-                if row['上课地点'] and str(row['上课地点']).strip()
+                extract_building_name(str(row.上课地点))
+                for row in df.itertuples(index=False)
+                if row.上课地点 and str(row.上课地点).strip()
             ))
             logger.info(f"[BUILDINGS] DataFrame 兜底返回 {len(buildings)} 个楼栋: {buildings[:5]}")
 
@@ -435,8 +435,8 @@ def api_building_usage():
 
         # 统计各楼栋使用情况（使用唯一教室数）
         usage = {}
-        for _, row in active_courses.iterrows():
-            room = str(row['上课地点'])
+        for row in active_courses.itertuples(index=False):
+            room = str(row.上课地点)
             building = re.sub(r'\d+$', '', room).strip()
             if building:
                 if building not in usage:

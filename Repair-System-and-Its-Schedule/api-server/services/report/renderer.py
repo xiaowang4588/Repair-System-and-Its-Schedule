@@ -103,6 +103,23 @@ class ReportRenderer:
         if advice:
             self._excel_advice(wb, advice)
 
+        # === 新增 Sheet ===
+        # Sheet 10: 多周趋势（仅周报）
+        if analysis.get('report_type') == 'weekly':
+            self._excel_multi_week_trend(wb, analysis)
+
+        # Sheet 11: 设备健康度
+        self._excel_equipment_health(wb, analysis)
+
+        # Sheet 12: 楼栋画像
+        self._excel_building_profile(wb, analysis)
+
+        # Sheet 13: 响应时效
+        self._excel_response_time(wb, analysis)
+
+        # Sheet 14: 工作负载
+        self._excel_workload(wb, analysis)
+
         buffer = BytesIO()
         wb.save(buffer)
         buffer.seek(0)
@@ -541,6 +558,262 @@ class ReportRenderer:
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
 
+    def _excel_multi_week_trend(self, wb, analysis: dict):
+        """Sheet 10: 多周趋势"""
+        from openpyxl.utils import get_column_letter
+
+        ws = wb.create_sheet('多周趋势')
+        trend = analysis.get('multi_week_trend', {})
+        weeks = trend.get('weeks', [])
+
+        ws.merge_cells('A1:G1')
+        self._set_title(ws['A1'], '近4周趋势分析')
+
+        row = 3
+        self._set_subtitle(ws.cell(row=row, column=1), f'趋势总结：{trend.get("summary", "")}')
+        row += 2
+
+        # 表头
+        headers = ['周次', '日期范围', '报修总量', '已处理', '待处理', '外聘教师', '设备更换']
+        for col, h in enumerate(headers, 1):
+            self._set_header(ws.cell(row=row, column=col), h)
+        row += 1
+
+        for w in weeks:
+            self._set_cell(ws.cell(row=row, column=1), w.get('week', ''), bold=True)
+            self._set_cell(ws.cell(row=row, column=2), w.get('date_range', ''), align='center')
+            self._set_cell(ws.cell(row=row, column=3), w.get('total', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=4), w.get('resolved', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=5), w.get('pending', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=6), w.get('external_teacher', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=7), w.get('device_replace', 0), align='center')
+            row += 1
+
+        # 趋势信息
+        row += 1
+        self._set_subtitle(ws.cell(row=row, column=1), '趋势分析')
+        row += 1
+        self._set_cell(ws.cell(row=row, column=1), f'整体趋势：{trend.get("trend_label", "")}')
+        row += 1
+        self._set_cell(ws.cell(row=row, column=1), f'变化加速度：{trend.get("acceleration_label", "")}')
+
+        col_widths = [12, 18, 12, 12, 12, 12, 12]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+    def _excel_equipment_health(self, wb, analysis: dict):
+        """Sheet 11: 设备健康度"""
+        from openpyxl.utils import get_column_letter
+        from openpyxl.styles import PatternFill
+
+        ws = wb.create_sheet('设备健康度')
+        health = analysis.get('equipment_health', {})
+        scores = health.get('scores', [])
+
+        ws.merge_cells('A1:J1')
+        self._set_title(ws['A1'], '设备健康度评分')
+
+        row = 2
+        summary = health.get('summary', {})
+        self._set_subtitle(ws.cell(row=row, column=1),
+            f'全校平均分：{summary.get("avg_score", 0)} | 不健康教室：{summary.get("unhealthy_count", 0)}/{summary.get("total_classrooms", 0)}')
+        row += 2
+
+        # 表头
+        headers = ['教室', '健康评分', '健康等级', '学期报修', '本周报修', '设备更换', '超时未处理', '主要故障类型', '重复故障', '扣分原因']
+        for col, h in enumerate(headers, 1):
+            self._set_header(ws.cell(row=row, column=col), h)
+        row += 1
+
+        # 等级颜色
+        level_fills = {
+            'danger': PatternFill(start_color='FFF0F0', end_color='FFF0F0', fill_type='solid'),
+            'warning': PatternFill(start_color='FFF8E1', end_color='FFF8E1', fill_type='solid'),
+            'attention': PatternFill(start_color='F0F7FF', end_color='F0F7FF', fill_type='solid'),
+            'healthy': PatternFill(start_color='F0FFF0', end_color='F0FFF0', fill_type='solid'),
+        }
+
+        for item in scores[:30]:  # 最多显示30间
+            score_val = item.get('health_score', 0)
+            level = item.get('health_level', 'healthy')
+
+            for col in range(1, 11):
+                cell = ws.cell(row=row, column=col)
+                if level in level_fills:
+                    cell.fill = level_fills[level]
+
+            self._set_cell(ws.cell(row=row, column=1), item.get('classroom', ''), bold=True)
+            self._set_cell(ws.cell(row=row, column=2), score_val, bold=True, align='center')
+            self._set_cell(ws.cell(row=row, column=3), item.get('health_label', ''), align='center')
+            self._set_cell(ws.cell(row=row, column=4), item.get('semester_count', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=5), item.get('this_week_count', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=6), item.get('replace_count', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=7), item.get('overdue_count', 0), align='center')
+
+            top_ft = item.get('top_fault_types', [])
+            self._set_cell(ws.cell(row=row, column=8), '、'.join([f"{t['type']}({t['count']})" for t in top_ft[:2]]))
+
+            repeat_ft = item.get('repeat_fault_types', [])
+            self._set_cell(ws.cell(row=row, column=9), '、'.join([f"{t['type']}({t['count']})" for t in repeat_ft[:2]]))
+
+            self._set_cell(ws.cell(row=row, column=10), '; '.join(item.get('deductions', [])[:3]))
+            row += 1
+
+        col_widths = [12, 10, 10, 10, 10, 10, 10, 25, 25, 40]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        ws.freeze_panes = 'A4'
+
+    def _excel_building_profile(self, wb, analysis: dict):
+        """Sheet 12: 楼栋画像"""
+        from openpyxl.utils import get_column_letter
+
+        ws = wb.create_sheet('楼栋画像')
+        profile = analysis.get('building_profile', {})
+        profiles = profile.get('profiles', {})
+        school_avg = profile.get('school_average', {})
+
+        ws.merge_cells('A1:J1')
+        self._set_title(ws['A1'], '楼栋特征画像')
+
+        row = 2
+        self._set_subtitle(ws.cell(row=row, column=1),
+            f'全校指标参考：外聘比{school_avg.get("external_ratio", 0)}% | 更换率{school_avg.get("replace_ratio", 0)}% | 平均处理{school_avg.get("avg_process_days", 0)}天')
+        row += 2
+
+        headers = ['楼栋', '学期报修', '本周报修', '典型故障模式', '外聘比', '更换率', '平均处理', '高峰时段', '教室数', '未处理']
+        for col, h in enumerate(headers, 1):
+            self._set_header(ws.cell(row=row, column=col), h)
+        row += 1
+
+        for building, info in profiles.items():
+            # 标记外聘比/更换率/处理时间偏高的项
+            ext_label = f"{info.get('external_ratio', 0)}%"
+            if info.get('external_vs_avg') == 'high':
+                ext_label += ' ⚠️'
+
+            replace_label = f"{info.get('replace_ratio', 0)}%"
+            if info.get('replace_vs_avg') == 'high':
+                replace_label += ' ⚠️'
+
+            process_label = f"{info.get('avg_process_days', 0)}天"
+            if info.get('process_vs_avg') == 'high':
+                process_label += ' ⚠️'
+
+            self._set_cell(ws.cell(row=row, column=1), building, bold=True)
+            self._set_cell(ws.cell(row=row, column=2), info.get('semester_total', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=3), info.get('this_week_count', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=4), info.get('typical_fault_label', ''))
+            self._set_cell(ws.cell(row=row, column=5), ext_label, align='center')
+            self._set_cell(ws.cell(row=row, column=6), replace_label, align='center')
+            self._set_cell(ws.cell(row=row, column=7), process_label, align='center')
+            self._set_cell(ws.cell(row=row, column=8), info.get('peak_section', ''), align='center')
+            self._set_cell(ws.cell(row=row, column=9), info.get('classroom_count', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=10), info.get('unhandled_count', 0), align='center')
+            row += 1
+
+        col_widths = [12, 10, 10, 35, 12, 12, 12, 10, 8, 8]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+    def _excel_response_time(self, wb, analysis: dict):
+        """Sheet 13: 响应时效"""
+        from openpyxl.utils import get_column_letter
+
+        ws = wb.create_sheet('响应时效')
+        rtm = analysis.get('response_time_matrix', {})
+
+        ws.merge_cells('A1:H1')
+        self._set_title(ws['A1'], '响应时效分析')
+
+        # 按处理人
+        row = 3
+        self._set_subtitle(ws.cell(row=row, column=1), '一、按处理人时效')
+        row += 1
+
+        headers = ['处理人', '处理总量', '已处理', '完成率', '平均天数', '按时率(≤2天)', '涉及教室']
+        for col, h in enumerate(headers, 1):
+            self._set_header(ws.cell(row=row, column=col), h)
+        row += 1
+
+        for h in rtm.get('by_handler', []):
+            self._set_cell(ws.cell(row=row, column=1), h.get('handler', ''), bold=True)
+            self._set_cell(ws.cell(row=row, column=2), h.get('total', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=3), h.get('resolved', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=4), f"{h.get('completed_rate', 0)}%", align='center')
+            self._set_cell(ws.cell(row=row, column=5), f"{h.get('avg_process_days', 0)}天", align='center')
+            self._set_cell(ws.cell(row=row, column=6), f"{h.get('on_time_rate', 0)}%", align='center')
+            self._set_cell(ws.cell(row=row, column=7), h.get('classroom_count', 0), align='center')
+            row += 1
+
+        # 按故障类型
+        row += 2
+        self._set_subtitle(ws.cell(row=row, column=1), '二、按故障类型时效')
+        row += 1
+
+        ft_headers = ['故障类型', '报修量', '已处理', '平均天数']
+        for col, h in enumerate(ft_headers, 1):
+            self._set_header(ws.cell(row=row, column=col), h)
+        row += 1
+
+        for ft in rtm.get('by_fault_type', []):
+            self._set_cell(ws.cell(row=row, column=1), ft.get('fault_type', ''), bold=True)
+            self._set_cell(ws.cell(row=row, column=2), ft.get('total', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=3), ft.get('resolved', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=4), f"{ft.get('avg_process_days', 0)}天", align='center')
+            row += 1
+
+        # 瓶颈
+        bottlenecks = rtm.get('bottlenecks', [])
+        if bottlenecks:
+            row += 2
+            self._set_subtitle(ws.cell(row=row, column=1), '三、响应瓶颈')
+            row += 1
+            for bn in bottlenecks:
+                self._set_cell(ws.cell(row=row, column=1), f'⚠️ {bn.get("issue", "")}')
+                row += 1
+                self._set_cell(ws.cell(row=row, column=1), f'   💡 {bn.get("suggestion", "")}')
+                row += 1
+
+        col_widths = [15, 12, 12, 12, 14, 14, 10]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+    def _excel_workload(self, wb, analysis: dict):
+        """Sheet 14: 工作负载"""
+        from openpyxl.utils import get_column_letter
+
+        ws = wb.create_sheet('工作负载')
+        workload = analysis.get('workload_analysis', {})
+
+        ws.merge_cells('A1:G1')
+        self._set_title(ws['A1'], '处理人工作负载分析')
+
+        row = 3
+        self._set_subtitle(ws.cell(row=row, column=1),
+            f'负载评估：{workload.get("balance_assessment", "")}')
+        row += 2
+
+        headers = ['处理人', '学期总量', '本周量', '已处理', '完成率', '待处理积压', '日均处理']
+        for col, h in enumerate(headers, 1):
+            self._set_header(ws.cell(row=row, column=col), h)
+        row += 1
+
+        for h in workload.get('handlers', []):
+            self._set_cell(ws.cell(row=row, column=1), h.get('handler', ''), bold=True)
+            self._set_cell(ws.cell(row=row, column=2), h.get('semester_total', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=3), h.get('week_total', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=4), h.get('resolved', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=5), f"{h.get('completed_rate', 0)}%", align='center')
+            self._set_cell(ws.cell(row=row, column=6), h.get('pending', 0), align='center')
+            self._set_cell(ws.cell(row=row, column=7), f"{h.get('daily_avg', 0):.2f}件/天", align='center')
+            row += 1
+
+        col_widths = [15, 12, 10, 10, 10, 12, 14]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
     # ============================================================
     # Word 报告
     # ============================================================
@@ -770,6 +1043,22 @@ class ReportRenderer:
 
         doc.add_paragraph()
 
+        # ============ 多周趋势分析（仅周报） ============
+        if report_type == 'weekly':
+            self._word_multi_week_trend(doc, analysis)
+
+        # ============ 设备健康度 ============
+        self._word_equipment_health(doc, analysis)
+
+        # ============ 楼栋画像 ============
+        self._word_building_profile(doc, analysis)
+
+        # ============ 响应时效 ============
+        self._word_response_time(doc, analysis)
+
+        # ============ 工作负载 ============
+        self._word_workload(doc, analysis)
+
         # ============ 八、智能建议 ============
         doc.add_heading('八、智能建议与改进措施', level=1)
 
@@ -803,6 +1092,237 @@ class ReportRenderer:
         doc.save(buffer)
         buffer.seek(0)
         return buffer
+
+    def _word_multi_week_trend(self, doc, analysis: dict):
+        """Word: 多周趋势分析"""
+        from docx.shared import Pt, RGBColor, Cm
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+
+        trend = analysis.get('multi_week_trend', {})
+        weeks = trend.get('weeks', [])
+
+        doc.add_heading('多周趋势分析', level=1)
+
+        doc.add_paragraph(f'趋势判断：{trend.get("summary", "")}')
+        doc.add_paragraph()
+
+        if weeks:
+            table = doc.add_table(rows=len(weeks) + 1, cols=7)
+            table.style = 'Light Grid Accent 1'
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+            headers = ['周次', '日期', '总量', '已处理', '待处理', '外聘教师', '设备更换']
+            for j, h in enumerate(headers):
+                table.rows[0].cells[j].text = h
+
+            for i, w in enumerate(weeks):
+                row = table.rows[i + 1]
+                row.cells[0].text = w.get('week', '')
+                row.cells[1].text = w.get('date_range', '')
+                row.cells[2].text = str(w.get('total', 0))
+                row.cells[3].text = str(w.get('resolved', 0))
+                row.cells[4].text = str(w.get('pending', 0))
+                row.cells[5].text = str(w.get('external_teacher', 0))
+                row.cells[6].text = str(w.get('device_replace', 0))
+
+        doc.add_paragraph()
+
+    def _word_equipment_health(self, doc, analysis: dict):
+        """Word: 设备健康度"""
+        from docx.shared import Pt, RGBColor, Cm
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+
+        health = analysis.get('equipment_health', {})
+        scores = health.get('scores', [])
+        summary = health.get('summary', {})
+        problems = health.get('this_week_problems', [])
+
+        doc.add_heading('设备健康度报告', level=1)
+
+        doc.add_paragraph(f'全校设备健康概览：平均分 {summary.get("avg_score", 0)} 分，共 {summary.get("total_classrooms", 0)} 间教室纳入评估，其中 {summary.get("unhealthy_count", 0)} 间处于"警告"或"危险"级别。')
+        doc.add_paragraph()
+
+        if problems:
+            doc.add_paragraph('本周重点关注教室：')
+            for item in problems[:5]:
+                classroom = item.get('classroom', '')
+                score = item.get('health_score', 0)
+                label = item.get('health_label', '')
+                semester_count = item.get('semester_count', 0)
+                repeat_faults = item.get('repeat_fault_types', [])
+                deductions = item.get('deductions', [])
+
+                p = doc.add_paragraph()
+                run = p.add_run(f'• {classroom}（{score}分/{label}）')
+                run.bold = True
+                if score < 40:
+                    run.font.color.rgb = RGBColor(239, 68, 68)
+                elif score < 60:
+                    run.font.color.rgb = RGBColor(245, 158, 11)
+
+                p = doc.add_paragraph(f'  学期报修 {semester_count} 次，扣分项：{"；".join(deductions[:3])}')
+                p.paragraph_format.left_indent = Cm(1)
+        else:
+            doc.add_paragraph('本周暂无设备健康度预警。')
+
+        doc.add_paragraph()
+
+        # 健康度排行表（Top 10 最差）
+        worst = scores[:10]
+        if worst:
+            table = doc.add_table(rows=min(len(worst), 10) + 1, cols=5)
+            table.style = 'Light Grid Accent 1'
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+            table.rows[0].cells[0].text = '教室'
+            table.rows[0].cells[1].text = '评分'
+            table.rows[0].cells[2].text = '等级'
+            table.rows[0].cells[3].text = '学期次数'
+            table.rows[0].cells[4].text = '主要故障'
+
+            for i, item in enumerate(worst[:10]):
+                row = table.rows[i + 1]
+                row.cells[0].text = item.get('classroom', '')
+                row.cells[1].text = str(item.get('health_score', 0))
+                row.cells[2].text = item.get('health_label', '')
+                row.cells[3].text = str(item.get('semester_count', 0))
+                top_ft = item.get('top_fault_types', [])
+                row.cells[4].text = '、'.join([f"{t['type']}({t['count']})" for t in top_ft[:2]])
+
+        doc.add_paragraph()
+
+    def _word_building_profile(self, doc, analysis: dict):
+        """Word: 楼栋画像"""
+        from docx.shared import Pt, RGBColor, Cm
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+
+        profile = analysis.get('building_profile', {})
+        profiles = profile.get('profiles', {})
+        attention = profile.get('attention_buildings', [])
+        school_avg = profile.get('school_average', {})
+
+        doc.add_heading('楼栋特征分析', level=1)
+
+        doc.add_paragraph(f'全校参考值：外聘比 {school_avg.get("external_ratio", 0)}%，更换率 {school_avg.get("replace_ratio", 0)}%，平均处理 {school_avg.get("avg_process_days", 0)} 天。')
+        doc.add_paragraph()
+
+        if profiles:
+            table = doc.add_table(rows=len(profiles) + 1, cols=6)
+            table.style = 'Light Grid Accent 1'
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+            table.rows[0].cells[0].text = '楼栋'
+            table.rows[0].cells[1].text = '典型故障模式'
+            table.rows[0].cells[2].text = '外聘比'
+            table.rows[0].cells[3].text = '更换率'
+            table.rows[0].cells[4].text = '平均处理'
+            table.rows[0].cells[5].text = '高峰时段'
+
+            for i, (building, info) in enumerate(profiles.items()):
+                row = table.rows[i + 1]
+                row.cells[0].text = building
+                row.cells[1].text = info.get('typical_fault_label', '')
+                row.cells[2].text = f"{info.get('external_ratio', 0)}%{' ⚠️' if info.get('external_vs_avg') == 'high' else ''}"
+                row.cells[3].text = f"{info.get('replace_ratio', 0)}%{' ⚠️' if info.get('replace_vs_avg') == 'high' else ''}"
+                row.cells[4].text = f"{info.get('avg_process_days', 0)}天{' ⚠️' if info.get('process_vs_avg') == 'high' else ''}"
+                row.cells[5].text = info.get('peak_section', '')
+
+        if attention:
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            run = p.add_run(f'⚠️ 需要重点关注的楼栋：{"、".join(attention)}')
+            run.bold = True
+            run.font.color.rgb = RGBColor(245, 158, 11)
+
+        doc.add_paragraph()
+
+    def _word_response_time(self, doc, analysis: dict):
+        """Word: 响应时效"""
+        from docx.shared import Pt, RGBColor
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+
+        rtm = analysis.get('response_time_matrix', {})
+
+        doc.add_heading('响应时效分析', level=1)
+
+        # 按处理人
+        by_handler = rtm.get('by_handler', [])
+        if by_handler:
+            doc.add_paragraph('按处理人时效：')
+
+            table = doc.add_table(rows=len(by_handler) + 1, cols=5)
+            table.style = 'Light Grid Accent 1'
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+            table.rows[0].cells[0].text = '处理人'
+            table.rows[0].cells[1].text = '总量'
+            table.rows[0].cells[2].text = '完成率'
+            table.rows[0].cells[3].text = '平均天数'
+            table.rows[0].cells[4].text = '按时率(≤2天)'
+
+            for i, h in enumerate(by_handler):
+                row = table.rows[i + 1]
+                row.cells[0].text = h.get('handler', '')
+                row.cells[1].text = str(h.get('total', 0))
+                row.cells[2].text = f"{h.get('completed_rate', 0)}%"
+                row.cells[3].text = f"{h.get('avg_process_days', 0)}天"
+                row.cells[4].text = f"{h.get('on_time_rate', 0)}%"
+
+        doc.add_paragraph()
+
+        # 瓶颈
+        bottlenecks = rtm.get('bottlenecks', [])
+        if bottlenecks:
+            doc.add_paragraph('响应瓶颈：')
+            for bn in bottlenecks:
+                p = doc.add_paragraph()
+                run = p.add_run(f'• {bn.get("issue", "")}')
+                run.bold = True
+                p = doc.add_paragraph(f'  建议：{bn.get("suggestion", "")}')
+
+        doc.add_paragraph()
+
+    def _word_workload(self, doc, analysis: dict):
+        """Word: 工作负载"""
+        from docx.shared import Pt, RGBColor
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+
+        workload = analysis.get('workload_analysis', {})
+
+        doc.add_heading('工作负载分析', level=1)
+
+        doc.add_paragraph(f'负载评估：{workload.get("balance_assessment", "")}')
+        doc.add_paragraph()
+
+        handlers = workload.get('handlers', [])
+        if handlers:
+            table = doc.add_table(rows=len(handlers) + 1, cols=5)
+            table.style = 'Light Grid Accent 1'
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+            table.rows[0].cells[0].text = '处理人'
+            table.rows[0].cells[1].text = '学期总量'
+            table.rows[0].cells[2].text = '完成率'
+            table.rows[0].cells[3].text = '待处理积压'
+            table.rows[0].cells[4].text = '日均处理'
+
+            for i, h in enumerate(handlers):
+                row = table.rows[i + 1]
+                row.cells[0].text = h.get('handler', '')
+                row.cells[1].text = str(h.get('semester_total', 0))
+                row.cells[2].text = f"{h.get('completed_rate', 0)}%"
+                row.cells[3].text = str(h.get('pending', 0))
+                row.cells[4].text = f"{h.get('daily_avg', 0):.2f}件/天"
+
+        if not workload.get('is_balanced', True):
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            run = p.add_run('⚠️ 工作负载不均，建议合理调配任务分配。')
+            run.bold = True
+            run.font.color.rgb = RGBColor(245, 158, 11)
+
+        doc.add_paragraph()
 
     def _get_type_name(self, report_type: str) -> str:
         return {'weekly': '周报', 'monthly': '月报', 'semester': '学期报告'}.get(report_type, '报告')

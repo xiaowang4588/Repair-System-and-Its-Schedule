@@ -47,33 +47,33 @@ class EmptyClassroomQuery:
         self._build_index()
     
     def _build_index(self):
-        """构建教室使用索引"""
+        """构建教室使用索引（itertuples 向量化，比 iterrows 快约 10x）"""
         # 重置索引
         self.classroom_index = {}
         self.buildings = {}
         self.all_classrooms = set()
-        
-        for _, row in self.df.iterrows():
-            weekday = row['weekday']
-            sections = row['section_list']
-            classrooms = row['classroom_list']
-            buildings = row['building_list']
-            
+
+        for row in self.df.itertuples(index=False):
+            weekday = row.weekday
+            sections = row.section_list
+            classrooms = row.classroom_list
+            buildings_list = row.building_list
+
             if weekday not in self.classroom_index:
                 self.classroom_index[weekday] = {}
-            
+
             # 更新教室使用索引
             for i, classroom in enumerate(classrooms):
                 if classroom not in self.classroom_index[weekday]:
                     self.classroom_index[weekday][classroom] = set()
                 self.classroom_index[weekday][classroom].update(sections)
-                
+
                 # 更新所有教室集合
                 self.all_classrooms.add(classroom)
-                
+
                 # 更新楼栋映射
-                if i < len(buildings):
-                    building = buildings[i]
+                if i < len(buildings_list):
+                    building = buildings_list[i]
                     if building not in self.buildings:
                         self.buildings[building] = set()
                     self.buildings[building].add(classroom)
@@ -113,61 +113,69 @@ class EmptyClassroomQuery:
         return not any(section in occupied_sections for section in sections)
     
     def query_empty_classrooms(self, condition: QueryCondition) -> List[ClassroomInfo]:
-        """查询空教室"""
+        """查询空教室（向量化优化：一次集合运算替代逐间教室循环检查）"""
         results = []
-        
+
         # 获取所有候选教室
         candidate_classrooms = self.all_classrooms.copy()
-        
+
         # 按楼栋筛选
         if condition.building and condition.building in self.buildings:
             candidate_classrooms = self.buildings[condition.building].intersection(candidate_classrooms)
-        
+
         # 按关键词筛选
         if condition.keyword:
             keyword_lower = condition.keyword.lower()
             candidate_classrooms = {
-                c for c in candidate_classrooms 
+                c for c in candidate_classrooms
                 if keyword_lower in c.lower()
             }
-        
-        # 检查每个教室
-        for classroom in candidate_classrooms:
+
+        # 向量化：一次性找出该星期所有有冲突的教室，而非逐间调用 _is_classroom_available
+        weekday_index = self.classroom_index.get(condition.weekday, {})
+        query_sections_set = set(condition.sections)
+
+        # 占用节次与查询节次有交集的教室即为冲突
+        conflict_classrooms = {
+            classroom
+            for classroom, occupied in weekday_index.items()
+            if occupied & query_sections_set
+        }
+
+        # 可用教室 = 候选 − 冲突（单次集合运算，O(N)）
+        available_classrooms = candidate_classrooms - conflict_classrooms
+
+        for classroom in available_classrooms:
             # 分类教室
             classroom_type = self._classify_classroom(classroom)
-            
+
             # 按类型筛选
             if condition.classroom_type != ClassroomType.ALL:
                 if classroom_type != condition.classroom_type:
                     continue
-            
+
             # 排除特殊地点
             if condition.exclude_special and classroom_type == ClassroomType.SPECIAL:
                 continue
-            
-            # 检查可用性
-            if self._is_classroom_available(classroom, condition.weekday, condition.sections):
-                # 获取占用的节次（确保类型正确）
-                occupied_sections: Set[int] = set()
-                if condition.weekday in self.classroom_index:
-                    if classroom in self.classroom_index[condition.weekday]:
-                        occupied_sections = self.classroom_index[condition.weekday][classroom]
-                
-                # 计算可用的节次（所有1-12节中空闲的）
-                available_sections = [s for s in range(1, 13) if s not in occupied_sections]
-                
-                # 提取楼栋名称
-                building_match = re.match(r'([^\d]+)', classroom)
-                building = building_match.group(1).strip() if building_match else "未知"
-                
-                results.append(ClassroomInfo(
-                    classroom=classroom,
-                    building=building,
-                    classroom_type=classroom_type,
-                    sections_available=available_sections,
-                    sections_occupied=sorted(list(occupied_sections))
-                ))
-        
+
+            # 获取占用的节次
+            occupied_sections = weekday_index.get(classroom, set())
+
+            # 计算可用的节次（所有1-12节中空闲的）
+            available_sections = [s for s in range(1, 13) if s not in occupied_sections]
+
+            # 提取楼栋名称
+            building_match = re.match(r'([^\d]+)', classroom)
+            building = building_match.group(1).strip() if building_match else "未知"
+
+            results.append(ClassroomInfo(
+                classroom=classroom,
+                building=building,
+                classroom_type=classroom_type,
+                sections_available=available_sections,
+                sections_occupied=sorted(occupied_sections)
+            ))
+
         # 按楼栋和教室名称排序
         results.sort(key=lambda x: (x.building, x.classroom))
         return results

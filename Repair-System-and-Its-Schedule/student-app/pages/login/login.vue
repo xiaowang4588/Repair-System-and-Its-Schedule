@@ -122,7 +122,7 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F0F4FF;
+    background: var(--color-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,39 +130,60 @@ export default {
     overflow: hidden;
 }
 
+/* ---- 装饰背景 ---- */
 .login-bg {
     position: absolute;
-    top: -200rpx;
-    left: -100rpx;
-    width: 700rpx;
-    height: 700rpx;
+    top: -160rpx;
+    left: -80rpx;
+    width: 600rpx;
+    height: 600rpx;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    opacity: 0.15;
+    background: var(--color-primary-gradient);
+    opacity: 0.08;
+    animation: float-bg 8s ease-in-out infinite;
+}
+@keyframes float-bg {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(30rpx, -20rpx) scale(1.05); }
+}
+
+/* 第二个装饰圆 */
+.login-bg::after {
+    content: '';
+    position: absolute;
+    bottom: -100rpx;
+    right: -60rpx;
+    width: 300rpx;
+    height: 300rpx;
+    border-radius: 50%;
+    background: var(--color-primary-gradient);
+    opacity: 0.06;
 }
 
 .login-container {
-    width: 90%;
+    width: 88%;
     max-width: 640rpx;
     position: relative;
     z-index: 1;
 }
 
+/* ---- Logo区域 ---- */
 .login-header {
     text-align: center;
-    margin-bottom: 60rpx;
+    margin-bottom: 56rpx;
+    animation: fadeInUp 0.5s ease both;
 }
 
 .logo-circle {
     width: 120rpx;
     height: 120rpx;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--color-primary-gradient);
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.35);
+    box-shadow: 0 12rpx 40rpx rgba(108, 92, 231, 0.3);
 }
 
 .logo-icon {
@@ -172,23 +193,27 @@ export default {
 .login-title {
     font-size: 44rpx;
     font-weight: 700;
-    color: #1E293B;
+    color: var(--color-text);
     display: block;
-    margin-bottom: 12rpx;
+    margin-bottom: 10rpx;
     letter-spacing: 2rpx;
 }
 
 .login-subtitle {
     font-size: 24rpx;
-    color: #94A3B8;
+    color: var(--color-text-tertiary);
     display: block;
+    font-weight: 500;
 }
 
+/* ---- 登录表单 ---- */
 .login-form {
-    background: white;
-    border-radius: 24rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
     padding: 40rpx 36rpx;
-    box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-lg);
+    border: 1rpx solid var(--color-border-light);
+    animation: fadeInUp 0.5s ease 0.1s both;
 }
 
 .form-group {
@@ -197,9 +222,9 @@ export default {
 
 .form-label {
     font-size: 26rpx;
-    color: #475569;
+    color: var(--color-text-secondary);
     font-weight: 600;
-    margin-bottom: 14rpx;
+    margin-bottom: 12rpx;
     display: block;
 }
 
@@ -209,21 +234,20 @@ export default {
 
 .form-input {
     width: 100%;
-    height: 92rpx;
+    height: 96rpx;
     padding: 0 28rpx;
-    border: 2rpx solid #E2E8F0;
-    border-radius: 16rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-md);
     font-size: 30rpx;
-    color: #1E293B;
-    background: #F8FAFC;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
-    transition: all 0.2s;
+    transition: all var(--transition-normal);
 }
-
 .form-input:focus {
-    border-color: #667eea;
-    background: white;
-    box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 6rpx rgba(108, 92, 231, 0.07);
 }
 
 .password-toggle {
@@ -235,29 +259,42 @@ export default {
 
 .toggle-text {
     font-size: 24rpx;
-    color: #667eea;
+    color: var(--color-primary);
     font-weight: 500;
 }
 
+/* ---- 登录按钮 ---- */
 .login-btn {
     width: 100%;
-    height: 96rpx;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100rpx;
+    background: var(--color-primary-gradient);
     color: white;
-    font-size: 32rpx;
+    font-size: 34rpx;
     font-weight: 600;
     border: none;
-    border-radius: 16rpx;
-    margin-top: 16rpx;
-    letter-spacing: 4rpx;
-    box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.35);
+    border-radius: var(--radius-md);
+    margin-top: 20rpx;
+    letter-spacing: 6rpx;
+    box-shadow: 0 8rpx 28rpx rgba(108, 92, 231, 0.35);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
 }
-
+.login-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
 .login-btn:active {
-    transform: translateY(2rpx);
-    box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.25);
+    transform: translateY(2rpx) scale(0.98);
+    box-shadow: 0 4rpx 16rpx rgba(108, 92, 231, 0.2);
 }
-
+.login-btn:active::after {
+    opacity: 1;
+}
 .login-btn:disabled {
     opacity: 0.6;
 }
@@ -267,7 +304,8 @@ export default {
     text-align: center;
     margin-top: 40rpx;
     font-size: 22rpx;
-    color: #94A3B8;
+    color: var(--color-text-tertiary);
     letter-spacing: 2rpx;
+    animation: fadeInUp 0.5s ease 0.2s both;
 }
 </style>

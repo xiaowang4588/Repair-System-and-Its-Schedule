@@ -373,7 +373,7 @@ def admin_excel_list():
 @admin_bp.route('/admin/excel/upload', methods=['POST'])
 @admin_required
 def admin_excel_upload():
-    """上传Excel文件"""
+    """上传Excel文件（后台异步处理，不阻塞响应）"""
     try:
         if 'file' not in request.files:
             return jsonify({'status': 'error', 'message': '没有选择文件'}), 400
@@ -387,21 +387,13 @@ def admin_excel_upload():
 
         result = admin_config.upload_excel(file, year, semester)
 
-        # reload() 返回实际加载结果
-        success = cache.reload()
-        if success:
-            status_info = cache.get_status()
-            return jsonify({
-                'status': 'ok',
-                'message': f'上传成功：{file.filename}（已加载 {status_info["records"]} 条记录）'
-            })
-        else:
-            error_detail = cache._last_error or '未知原因'
-            return jsonify({
-                'status': 'warning',
-                'message': f'文件已上传，但加载数据失败：{error_detail}',
-                'data': result
-            })
+        # 移到后台线程处理，立即返回响应
+        cache.reload_async()
+        return jsonify({
+            'status': 'ok',
+            'message': f'文件已上传：{file.filename}，正在后台加载数据...',
+            'data': result
+        })
     except ValueError as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
     except Exception as e:
@@ -411,7 +403,7 @@ def admin_excel_upload():
 @admin_bp.route('/admin/excel/switch', methods=['POST'])
 @admin_required
 def admin_excel_switch():
-    """切换Excel文件"""
+    """切换Excel文件（后台异步处理）"""
     try:
         data = request.get_json() or {}
         path = data.get('path', '')
@@ -419,14 +411,8 @@ def admin_excel_switch():
             return jsonify({'status': 'error', 'message': '缺少文件路径'}), 400
 
         admin_config.switch_excel(path)
-        success = cache.reload()
-        if success:
-            return jsonify({'status': 'ok', 'message': '已切换文件'})
-        else:
-            return jsonify({
-                'status': 'warning',
-                'message': '文件已切换，但加载数据失败，请稍后点击"刷新数据"重试'
-            })
+        cache.reload_async()
+        return jsonify({'status': 'ok', 'message': '已切换文件，正在后台加载数据...'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -453,11 +439,22 @@ def admin_excel_clear_all():
     """清除所有 Excel 数据（删除全部文件 + 重置配置 + 清缓存）"""
     try:
         result = admin_config.clear_all_excel()
-        cache.reload()
+        cache.reload()  # 清空是快速操作，同步即可
         return jsonify({
             'status': 'ok',
             'message': f'已清除所有数据（删除 {result["deleted_count"]} 个文件）',
             'data': result
         })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@admin_bp.route('/admin/cache/status', methods=['GET'])
+@admin_required
+def admin_cache_status():
+    """查询缓存后台处理状态（供前端轮询）"""
+    try:
+        status = cache.get_processing_status()
+        return jsonify({'status': 'ok', 'data': status})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

@@ -94,10 +94,12 @@ def get_repair_list(status: str = 'all',
                     handler_name: str = '',
                     fault_cause: str = '',
                     page: int = 1,
-                    page_size: int = 50) -> dict:
+                    page_size: int = 50,
+                    include_logs: bool = True) -> dict:
     """
     获取报修列表（支持多条件组合筛选和分页）
 
+    :param include_logs: 是否加载修改日志。导出等场景无需日志，设为 False 可省一次 DB 查询。
     :return: {records: list, total: int, page: int, page_size: int, total_pages: int}
     """
     query = Repair.select()
@@ -166,10 +168,25 @@ def get_repair_list(status: str = 'all',
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(page, total_pages))
 
-    records = query.order_by(Repair.report_time.desc()).paginate(page, page_size)
+    records = list(query.order_by(Repair.report_time.desc()).paginate(page, page_size))
+
+    if include_logs and records:
+        # 批量预加载修改日志，避免 N+1 查询
+        repair_ids = [r.id for r in records]
+        logs = ModificationLog.select().where(ModificationLog.repair_id.in_(repair_ids))
+        log_map = {}
+        for log in logs:
+            log_map.setdefault(log.repair_id, []).append(log.to_dict())
+
+        result = [r.to_dict_light() for r in records]
+        for r in result:
+            r['modification_log'] = log_map.get(r['id'], [])
+    else:
+        # 不需要日志时直接用轻量字典（导出等场景）
+        result = [r.to_dict_light() for r in records]
 
     return {
-        'records': [r.to_dict() for r in records],
+        'records': result,
         'total': total,
         'page': page,
         'page_size': page_size,
@@ -177,8 +194,18 @@ def get_repair_list(status: str = 'all',
     }
 
 
+# 筛选选项缓存（这些值变化频率极低，5分钟TTL）
+_filter_options_cache = {'data': None, 'ts': 0}
+_FILTER_CACHE_TTL = 300  # 秒
+
+
 def get_filter_options() -> dict:
-    """获取所有筛选选项（用于前端下拉框）"""
+    """获取所有筛选选项（用于前端下拉框），带5分钟缓存"""
+    import time
+    now = time.time()
+    if _filter_options_cache['data'] and (now - _filter_options_cache['ts']) < _FILTER_CACHE_TTL:
+        return _filter_options_cache['data']
+
     # 学期列表
     semesters = sorted(
         set(r.semester for r in Repair.select(Repair.semester).distinct() if r.semester),
@@ -220,7 +247,7 @@ def get_filter_options() -> dict:
         set(r.week_number for r in Repair.select(Repair.week_number).distinct() if r.week_number and r.week_number > 0)
     )
 
-    return {
+    result = {
         'semesters': semesters,
         'fault_types': fault_types,
         'colleges': colleges,
@@ -230,23 +257,45 @@ def get_filter_options() -> dict:
         'reporters': reporters,
         'weeks': weeks,
     }
+    _filter_options_cache['data'] = result
+    _filter_options_cache['ts'] = now
+    return result
+
+
+def _parse_ids(record_ids: list) -> tuple:
+    """解析并过滤ID列表，返回 (valid_int_ids, invalid_str_ids)"""
+    valid, invalid = [], []
+    for rid in record_ids:
+        try:
+            valid.append(int(rid))
+        except (ValueError, TypeError):
+            invalid.append(str(rid))
+    return valid, invalid
 
 
 def batch_update_status(record_ids: list, new_status: str) -> dict:
     """批量更新处理状态（带事务保护）"""
     from models import get_db
     db = get_db()
+    valid_ids, invalid_ids = _parse_ids(record_ids)
+    if invalid_ids:
+        logger.warning(f"批量更新状态: 过滤无效ID {len(invalid_ids)} 个: {invalid_ids}")
+    if not valid_ids:
+        return {'updated_count': 0, 'failed_ids': invalid_ids}
     try:
         with db.atomic():
             updated = Repair.update(
                 status=new_status,
                 updated_at=datetime.now().strftime('%Y-%m-%d')
-            ).where(Repair.id.in_([int(rid) for rid in record_ids])).execute()
+            ).where(Repair.id.in_(valid_ids)).execute()
 
             if updated > 0:
                 logger.info(f"批量更新状态: {updated} 条记录 -> {new_status}")
 
-            return {'updated_count': updated}
+            result = {'updated_count': updated}
+            if invalid_ids:
+                result['failed_ids'] = invalid_ids
+            return result
     except Exception as e:
         logger.error(f"批量更新状态失败: {e}")
         return {'error': str(e), 'updated_count': 0}
@@ -256,39 +305,58 @@ def batch_update_handler(record_ids: list, handler_name: str) -> dict:
     """批量分配处理人（带事务保护）"""
     from models import get_db
     db = get_db()
+    valid_ids, invalid_ids = _parse_ids(record_ids)
+    if invalid_ids:
+        logger.warning(f"批量分配处理人: 过滤无效ID {len(invalid_ids)} 个: {invalid_ids}")
+    if not valid_ids:
+        return {'updated_count': 0, 'failed_ids': invalid_ids}
     try:
         with db.atomic():
             updated = Repair.update(
                 handler_name=handler_name,
                 updated_at=datetime.now().strftime('%Y-%m-%d')
-            ).where(Repair.id.in_([int(rid) for rid in record_ids])).execute()
+            ).where(Repair.id.in_(valid_ids)).execute()
 
             if updated > 0:
                 logger.info(f"批量分配处理人: {updated} 条记录 -> {handler_name}")
 
-            return {'updated_count': updated}
+            result = {'updated_count': updated}
+            if invalid_ids:
+                result['failed_ids'] = invalid_ids
+            return result
     except Exception as e:
         logger.error(f"批量分配处理人失败: {e}")
         return {'error': str(e), 'updated_count': 0}
 
 
 def batch_delete(record_ids: list) -> dict:
-    """批量删除（带事务保护）"""
+    """批量删除（带事务保护 + 无效ID过滤）"""
     from models import get_db
     db = get_db()
+    valid_ids, invalid_ids = _parse_ids(record_ids)
+    if invalid_ids:
+        logger.warning(f"批量删除: 过滤无效ID {len(invalid_ids)} 个: {invalid_ids}")
+    if not valid_ids:
+        return {'deleted_count': 0, 'failed_ids': invalid_ids}
+
     try:
         with db.atomic():
             deleted = Repair.delete().where(
-                Repair.id.in_([int(rid) for rid in record_ids])
+                Repair.id.in_(valid_ids)
             ).execute()
 
             if deleted > 0:
                 logger.info(f"批量删除: {deleted} 条记录")
+            if deleted < len(valid_ids):
+                logger.warning(f"批量删除: {len(valid_ids) - deleted} 个ID未找到（可能已被删除）")
 
-            return {'deleted_count': deleted}
+            result = {'deleted_count': deleted}
+            if invalid_ids:
+                result['failed_ids'] = invalid_ids
+            return result
     except Exception as e:
         logger.error(f"批量删除失败: {e}")
-        return {'error': str(e), 'deleted_count': 0}
+        return {'error': str(e), 'deleted_count': 0, 'failed_ids': invalid_ids}
 
 
 def get_semester_list() -> list:
@@ -439,9 +507,8 @@ def student_update_repair(repair_id: int, student_id: str, data: dict, student_n
 
     # note_images 需要序列化为 JSON 字符串
     if 'note_images' in update_fields:
-        import json as _json
         imgs = update_fields['note_images']
-        update_fields['note_images'] = _json.dumps(imgs, ensure_ascii=False) if isinstance(imgs, list) else imgs
+        update_fields['note_images'] = json.dumps(imgs, ensure_ascii=False) if isinstance(imgs, list) else imgs
         # 清理被移除的图片文件
         _cleanup_removed_images(repair.note_images or '', update_fields['note_images'])
 
@@ -452,9 +519,8 @@ def student_update_repair(repair_id: int, student_id: str, data: dict, student_n
 
     # 保存修改日志
     if log_entry['changes']:
-        import json
         ModificationLog.create(
-            repair=repair_id,
+            repair_id=repair_id,
             change_time=log_entry['time'],
             changes=json.dumps(log_entry['changes'], ensure_ascii=False),
         )
@@ -819,24 +885,39 @@ def get_dashboard_stats(range_type: str = 'semester') -> dict:
     semester_config = admin_config.get_semester_config()
 
     if range_type == 'week':
-        # 按天，从本周一开始到本周日
-        monday = now - timedelta(days=now.weekday())  # 本周一
-        trend = {}
+        # 按天聚合，一次 GROUP BY 替代 7 次独立查询
+        monday = now - timedelta(days=now.weekday())
+        week_start_str = monday.strftime('%Y-%m-%d')
+        trend_rows = (Repair
+            .select(fn.SUBSTR(Repair.report_time, 1, 10).alias('day'), fn.COUNT(Repair.id).alias('count'))
+            .where(date_filter & (Repair.report_time >= week_start_str))
+            .group_by(fn.SUBSTR(Repair.report_time, 1, 10))
+            .dicts())
+        trend = {d['day']: d['count'] for d in trend_rows}
+        # 填充缺失的日期为 0
         for i in range(7):
             d = (monday + timedelta(days=i)).strftime('%Y-%m-%d')
-            count = Repair.select(fn.COUNT(Repair.id)).where(
-                Repair.report_time.startswith(d)
-            ).scalar() or 0
-            trend[d] = count
+            if d not in trend:
+                trend[d] = 0
+        # 按日期排序
+        trend = dict(sorted(trend.items()))
     elif range_type == 'month':
-        # 按天，30天
-        trend = {}
+        # 按天聚合，一次 GROUP BY 替代 30 次独立查询
+        month_start = now - timedelta(days=29)
+        month_start_str = month_start.strftime('%Y-%m-%d')
+        trend_rows = (Repair
+            .select(fn.SUBSTR(Repair.report_time, 1, 10).alias('day'), fn.COUNT(Repair.id).alias('count'))
+            .where(date_filter & (Repair.report_time >= month_start_str))
+            .group_by(fn.SUBSTR(Repair.report_time, 1, 10))
+            .dicts())
+        trend = {d['day']: d['count'] for d in trend_rows}
+        # 填充缺失的日期为 0
         for i in range(30):
             d = (now - timedelta(days=29 - i)).strftime('%Y-%m-%d')
-            count = Repair.select(fn.COUNT(Repair.id)).where(
-                Repair.report_time.startswith(d)
-            ).scalar() or 0
-            trend[d] = count
+            if d not in trend:
+                trend[d] = 0
+        # 按日期排序
+        trend = dict(sorted(trend.items()))
     else:
         # 按教学周聚合
         start_date_str = semester_config.get('start_date', '')
@@ -1359,14 +1440,15 @@ def export_to_excel(range_type: str = 'all',
         start_date = now.strftime('%Y-%m-01')
         end_date = today
 
-    # 获取数据（page_size=99999 确保导出全部记录）
+    # 获取数据（page_size=99999 确保导出全部记录，include_logs=False 省去日志查询）
     result = get_repair_list(
         status=status,
         semester=semester,
         start_date=start_date,
         end_date=end_date,
         page=1,
-        page_size=99999
+        page_size=99999,
+        include_logs=False,
     )
     records = result.get('records', []) if isinstance(result, dict) else result
 
@@ -1500,6 +1582,9 @@ def import_from_excel(filepath: str) -> dict:
     从 Excel 文件导入报修记录
     智能识别列结构，自动适配不同格式的 Excel 文件
 
+    优化：批量插入（insert_many）替代逐行 create，使用 to_dict('records')
+          替代 iterrows()，减少 DB 往返和 pandas 迭代开销。
+
     :param filepath: Excel 文件路径
     :return: 导入结果 {success_count, error_count, errors, duplicates}
     """
@@ -1535,72 +1620,85 @@ def import_from_excel(filepath: str) -> dict:
         # 应用列映射
         df = df.rename(columns=column_map)
 
-        # 加载现有数据的去重键（从数据库查询）
+        # === 阶段1：收集所有有效行（to_dict('records') 比 iterrows() 快 5-10x） ===
+        valid_records = []
+        for idx, row in enumerate(df.to_dict('records')):
+            row_num = idx + 3  # Excel 行号（第1行标题，第2行表头，数据从第3行）
+            try:
+                record = _process_excel_row(row, row_num)
+                if record is not None:
+                    record['_row_num'] = row_num
+                    valid_records.append(record)
+            except Exception as e:
+                result['error_count'] += 1
+                result['errors'].append({'row': row_num, 'message': str(e)})
+
+        if not valid_records:
+            logger.info("Excel 导入: 没有有效数据行")
+            return result
+
+        # === 阶段2：批量去重（一次全表查询，比逐行查数据库更快） ===
         existing_keys = set()
         for r in Repair.select(Repair.classroom, Repair.report_time, Repair.fault_type):
             key = f"{r.classroom}_{r.report_time}_{r.fault_type}"
             existing_keys.add(key)
 
-        # 逐行处理
-        imported_count = 0
-        for idx, row in df.iterrows():
-            row_num = idx + 3  # Excel 行号（第1行标题，第2行表头，数据从第3行）
-
-            try:
-                record = _process_excel_row(row, row_num)
-                if record is None:
-                    continue
-
-                # 检查重复
-                key = f"{record.get('classroom', '')}_{record.get('report_time', '')}_{record.get('fault_type', '')}"
-                if key in existing_keys:
-                    result['duplicate_count'] += 1
-                    result['duplicates'].append({
-                        'row': row_num,
-                        'classroom': record.get('classroom', ''),
-                        'report_time': record.get('report_time', ''),
-                    })
-                    continue
-
-                # 写入数据库
-                now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                Repair.create(
-                    semester=_get_current_semester(),
-                    classroom=record.get('classroom', ''),
-                    report_time=record.get('report_time', ''),
-                    week_number=int(record.get('week_number', 0)),
-                    fault_type=record.get('fault_type', ''),
-                    reporter_name=record.get('reporter_name', ''),
-                    reporter_college=record.get('reporter_college', ''),
-                    is_external_teacher=bool(record.get('is_external_teacher', False)),
-                    report_method=record.get('report_method', ''),
-                    handler_name=record.get('handler_name', ''),
-                    is_device_replaced=bool(record.get('is_device_replaced', False)),
-                    status=record.get('status', '未处理'),
-                    fault_cause=record.get('fault_cause', ''),
-                    solution=record.get('solution', ''),
-                    completion_time=record.get('completion_time', ''),
-                    final_status=record.get('final_status', ''),
-                    created_at=now,
-                    updated_at=now,
-                )
-
-                imported_count += 1
-                existing_keys.add(key)
-                result['success_count'] += 1
-
-            except Exception as e:
-                result['error_count'] += 1
-                result['errors'].append({
+        # 过滤重复 + Excel 内部去重
+        to_insert = []
+        seen_in_batch = set()
+        for record in valid_records:
+            row_num = record.pop('_row_num')
+            key = f"{record.get('classroom', '')}_{record.get('report_time', '')}_{record.get('fault_type', '')}"
+            if key in existing_keys or key in seen_in_batch:
+                result['duplicate_count'] += 1
+                result['duplicates'].append({
                     'row': row_num,
-                    'message': str(e)
+                    'classroom': record.get('classroom', ''),
+                    'report_time': record.get('report_time', ''),
+                })
+                continue
+            seen_in_batch.add(key)
+            to_insert.append(record)
+
+        # === 阶段3：批量写入（单次事务，所有行一次 INSERT） ===
+        if to_insert:
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            semester = _get_current_semester()
+
+            batch = []
+            for record in to_insert:
+                batch.append({
+                    'semester': semester,
+                    'classroom': record.get('classroom', ''),
+                    'report_time': record.get('report_time', ''),
+                    'week_number': int(record.get('week_number', 0)),
+                    'fault_type': record.get('fault_type', ''),
+                    'reporter_name': record.get('reporter_name', ''),
+                    'reporter_college': record.get('reporter_college', ''),
+                    'is_external_teacher': bool(record.get('is_external_teacher', False)),
+                    'report_method': record.get('report_method', ''),
+                    'handler_name': record.get('handler_name', ''),
+                    'is_device_replaced': bool(record.get('is_device_replaced', False)),
+                    'status': record.get('status', '未处理'),
+                    'fault_cause': record.get('fault_cause', ''),
+                    'solution': record.get('solution', ''),
+                    'completion_time': record.get('completion_time', ''),
+                    'final_status': record.get('final_status', ''),
+                    'created_at': now,
+                    'updated_at': now,
                 })
 
-        # 记录导入结果
-        if imported_count > 0:
+            from models import get_db
+            db = get_db()
+            with db.atomic():
+                Repair.insert_many(batch).execute()
+
+            result['success_count'] = len(to_insert)
             logger.info(f"Excel 导入完成: 成功 {result['success_count']} 条, "
                        f"重复 {result['duplicate_count']} 条, "
                        f"错误 {result['error_count']} 条")
+        else:
+            logger.info(f"Excel 导入: 无新增记录，重复 {result['duplicate_count']} 条")
 
     except Exception as e:
         logger.error(f"Excel 导入失败: {e}")

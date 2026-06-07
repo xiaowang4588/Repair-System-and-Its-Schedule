@@ -68,7 +68,12 @@
             <view class="comment-section">
                 <view class="section-title">评论 ({{ post.comment_count || 0 }})</view>
 
-                <view v-if="comments.length === 0 && !loadingComments" class="empty-comment">
+                <!-- 评论区域加载中 -->
+                <view v-if="loadingComments" class="loading-comments">
+                    <view class="cmt-spinner"></view>
+                    <text>加载评论中...</text>
+                </view>
+                <view v-else-if="comments.length === 0" class="empty-comment">
                     <text>暂无评论，快来抢沙发吧～</text>
                 </view>
 
@@ -343,21 +348,22 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
-    padding-bottom: 120rpx;
+    background: var(--color-bg);
+    padding-bottom: 140rpx;
 }
 
 .container {
     padding: 24rpx;
 }
 
-/* 动态卡片 */
+/* ---- 动态卡片 ---- */
 .guide-card {
-    background: white;
-    border-radius: 16rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
     padding: 28rpx;
     margin-bottom: 20rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
 }
 
 .card-header {
@@ -370,26 +376,27 @@ export default {
     width: 72rpx;
     height: 72rpx;
     border-radius: 50%;
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 32rpx;
     font-weight: 600;
-    margin-right: 20rpx;
+    margin-right: 18rpx;
     flex-shrink: 0;
+    box-shadow: 0 4rpx 12rpx rgba(108, 92, 231, 0.2);
 }
 
 .user-info { flex: 1; }
-.user-name { font-size: 30rpx; font-weight: 600; color: #333; display: block; }
-.post-time { font-size: 22rpx; color: #999; display: block; margin-top: 4rpx; }
+.user-name { font-size: 30rpx; font-weight: 600; color: var(--color-text); display: block; }
+.post-time { font-size: 22rpx; color: var(--color-text-tertiary); display: block; margin-top: 4rpx; }
 
 .card-content { margin-bottom: 16rpx; }
-.content-text { font-size: 28rpx; color: #333; line-height: 1.6; }
+.content-text { font-size: 30rpx; color: var(--color-text); line-height: 1.75; }
 
 .card-images { display: flex; flex-wrap: wrap; gap: 8rpx; margin-bottom: 16rpx; }
-.grid-image-wrap { border-radius: 8rpx; overflow: hidden; background: #f0f0f0; }
+.grid-image-wrap { border-radius: 10rpx; overflow: hidden; background: var(--color-bg); }
 .grid-image { width: 100%; height: 100%; }
 .grid-1 { width: 580rpx; height: 400rpx; }
 .grid-2 { width: 285rpx; height: 214rpx; }
@@ -397,47 +404,69 @@ export default {
 
 .card-video { margin-bottom: 16rpx; }
 .video-player { width: 100%; height: 400rpx; border-radius: 12rpx; }
-.video-duration { font-size: 22rpx; color: #999; margin-top: 8rpx; display: block; }
+.video-duration { font-size: 22rpx; color: var(--color-text-tertiary); margin-top: 8rpx; display: block; }
 
-.card-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 16rpx; }
-.device-tag { padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; background: #EEF2FF; color: #4F7CFF; border: 1rpx solid #d4deff; }
-.location-tag { padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; background: #F0F9FF; color: #1890ff; border: 1rpx solid #bae0ff; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-bottom: 16rpx; }
+.device-tag { padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 500; }
+.location-tag { padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; background: var(--color-info-bg); color: var(--color-info); font-weight: 500; }
 
-.card-actions { display: flex; border-top: 1rpx solid #f5f5f5; padding-top: 16rpx; }
-.action-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx; font-size: 26rpx; color: #999; padding: 8rpx 0; }
-.action-item.liked { color: #ff4d4f; }
-.action-item.favorited { color: #faad14; }
-.action-count { font-size: 24rpx; }
+.card-actions { display: flex; border-top: 1rpx solid var(--color-divider); padding-top: 16rpx; }
+.action-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6rpx; font-size: 28rpx; color: var(--color-text-tertiary); padding: 10rpx 0; border-radius: var(--radius-sm); transition: all var(--transition-fast); }
+.action-item:active { background: var(--color-bg-secondary); }
+.action-item.liked { color: #EF4444; }
+.action-item.favorited { color: #F59E0B; }
+.action-count { font-size: 26rpx; }
 
-/* 评论区 */
+/* ---- 评论区 ---- */
 .comment-section {
-    background: white;
-    border-radius: 16rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
     padding: 28rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
 }
 
 .section-title {
     font-size: 30rpx;
-    font-weight: 600;
-    color: #333;
+    font-weight: 700;
+    color: var(--color-text);
     margin-bottom: 20rpx;
     padding-bottom: 16rpx;
-    border-bottom: 1rpx solid #f0f0f0;
+    border-bottom: 1rpx solid var(--color-divider);
 }
+
+/* 评论加载 */
+.loading-comments {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40rpx 0;
+    gap: 12rpx;
+    font-size: 26rpx;
+    color: var(--color-text-tertiary);
+}
+.cmt-spinner {
+    width: 40rpx;
+    height: 40rpx;
+    border: 3rpx solid var(--color-border);
+    border-top: 3rpx solid var(--color-primary);
+    border-radius: 50%;
+    animation: cmt-spin 0.7s linear infinite;
+}
+@keyframes cmt-spin { to { transform: rotate(360deg); } }
 
 .empty-comment {
     text-align: center;
     padding: 40rpx 0;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
 }
 
 .comment-item {
     padding: 20rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    border-bottom: 1rpx solid var(--color-divider);
+    transition: background var(--transition-fast);
 }
-
 .comment-item:last-child { border-bottom: none; }
 
 .comment-header {
@@ -450,8 +479,8 @@ export default {
     width: 56rpx;
     height: 56rpx;
     border-radius: 50%;
-    background: #E8EDFF;
-    color: #4F7CFF;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -462,49 +491,50 @@ export default {
 }
 
 .comment-info { flex: 1; }
-.comment-name { font-size: 26rpx; font-weight: 500; color: #333; display: block; }
-.comment-time { font-size: 20rpx; color: #999; display: block; margin-top: 2rpx; }
+.comment-name { font-size: 26rpx; font-weight: 600; color: var(--color-text); display: block; }
+.comment-time { font-size: 20rpx; color: var(--color-text-tertiary); display: block; margin-top: 2rpx; }
 
 .comment-delete {
     font-size: 24rpx;
-    color: #ff4d4f;
+    color: var(--color-danger);
     padding: 8rpx;
+    font-weight: 500;
 }
 
 .comment-body {
     font-size: 28rpx;
-    color: #333;
-    line-height: 1.5;
+    color: var(--color-text);
+    line-height: 1.55;
     padding-left: 72rpx;
 }
 
-.reply-to {
-    color: #4F7CFF;
-}
+.reply-to { color: var(--color-primary); font-weight: 500; }
 
 .comment-reply-btn {
     font-size: 24rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     padding-left: 72rpx;
     margin-top: 8rpx;
+    font-weight: 500;
 }
 
 .load-more { padding: 20rpx 0; text-align: center; }
-.load-more-btn { padding: 20rpx; font-size: 28rpx; color: #4F7CFF; }
-.no-more { padding: 20rpx; font-size: 26rpx; color: #999; }
-.loading { text-align: center; padding: 40rpx 0; font-size: 26rpx; color: #999; }
+.load-more-btn { padding: 20rpx; font-size: 28rpx; color: var(--color-primary); font-weight: 500; }
+.no-more { padding: 20rpx; font-size: 26rpx; color: var(--color-text-tertiary); }
+.loading { text-align: center; padding: 40rpx 0; font-size: 26rpx; color: var(--color-text-tertiary); }
 
-/* 底部评论输入栏 */
+/* ---- 底部评论输入栏 ---- */
 .comment-input-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: white;
-    border-top: 1rpx solid #eee;
+    background: var(--color-surface);
+    border-top: 1rpx solid var(--color-border-light);
     padding: 16rpx 24rpx;
     padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
     z-index: 100;
+    box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 
 .reply-hint {
@@ -512,13 +542,16 @@ export default {
     justify-content: space-between;
     align-items: center;
     font-size: 24rpx;
-    color: #4F7CFF;
+    color: var(--color-primary);
     margin-bottom: 12rpx;
+    background: var(--color-primary-bg);
+    padding: 8rpx 16rpx;
+    border-radius: var(--radius-xs);
 }
 
 .reply-cancel {
     font-size: 28rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     padding: 8rpx;
 }
 
@@ -531,10 +564,16 @@ export default {
 .comment-input {
     flex: 1;
     height: 72rpx;
-    background: #F5F7FA;
+    background: var(--color-bg);
     border-radius: 36rpx;
     padding: 0 28rpx;
     font-size: 28rpx;
+    border: 2rpx solid transparent;
+    transition: all var(--transition-fast);
+}
+.comment-input:focus {
+    border-color: var(--color-primary-light);
+    background: var(--color-surface);
 }
 
 .send-btn {
@@ -542,14 +581,15 @@ export default {
     height: 72rpx;
     line-height: 72rpx;
     text-align: center;
-    background: #ddd;
+    background: var(--color-border);
     color: white;
     border-radius: 36rpx;
     font-size: 28rpx;
-    font-weight: 500;
+    font-weight: 600;
+    transition: all var(--transition-fast);
 }
-
 .send-btn.active {
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
+    box-shadow: 0 4rpx 16rpx rgba(108, 92, 231, 0.3);
 }
 </style>

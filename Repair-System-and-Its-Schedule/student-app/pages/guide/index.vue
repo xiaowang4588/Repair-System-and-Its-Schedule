@@ -108,13 +108,14 @@
         </view>
 
         <!-- 加载中 -->
-        <view class="loading" v-if="loading">
+        <view class="loading-area" v-if="loading">
+            <view class="spinner-ring"></view>
             <text>加载中...</text>
         </view>
 
         <!-- 加载更多 -->
         <view class="load-more" v-if="records.length > 0">
-            <view v-if="loadingMore" class="loading"><text>加载中...</text></view>
+            <view v-if="loadingMore" class="loading-more-spin"><view class="mini-spinner"></view><text>加载中...</text></view>
             <view v-else-if="hasMore" @click="loadMore" class="load-more-btn"><text>点击加载更多</text></view>
             <view v-else class="no-more"><text>没有更多了</text></view>
         </view>
@@ -367,134 +368,150 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
+    background: var(--color-bg);
     padding-bottom: 120rpx;
 }
 
-/* 搜索栏 */
+/* ---- 搜索栏 ---- */
 .search-bar {
     display: flex;
     align-items: center;
     padding: 16rpx 24rpx;
-    background: white;
+    background: var(--color-surface);
     position: sticky;
     top: 0;
     z-index: 10;
+    border-bottom: 1rpx solid var(--color-border-light);
 }
 
 .search-input-wrap {
     flex: 1;
     display: flex;
     align-items: center;
-    background: #F5F7FA;
-    border-radius: 32rpx;
+    background: var(--color-bg);
+    border-radius: 36rpx;
     padding: 0 24rpx;
     height: 72rpx;
+    border: 2rpx solid transparent;
+    transition: all var(--transition-fast);
+}
+.search-input-wrap:focus-within {
+    border-color: var(--color-primary-light);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 4rpx rgba(108, 92, 231, 0.06);
 }
 
 .search-icon {
     font-size: 28rpx;
     margin-right: 12rpx;
+    opacity: 0.5;
 }
 
 .search-input {
     flex: 1;
     font-size: 28rpx;
-    color: #333;
+    color: var(--color-text);
 }
 
 .search-clear {
     font-size: 28rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     padding: 8rpx;
 }
 
 .search-cancel {
     font-size: 28rpx;
-    color: #4F7CFF;
+    color: var(--color-primary);
     margin-left: 16rpx;
     white-space: nowrap;
+    font-weight: 500;
 }
 
 .search-tip {
     padding: 16rpx 24rpx;
     font-size: 24rpx;
-    color: #999;
-    background: white;
-    border-bottom: 1rpx solid #f0f0f0;
+    color: var(--color-text-tertiary);
+    background: var(--color-surface);
+    border-bottom: 1rpx solid var(--color-divider);
 }
 
-/* 标签滚动 */
+/* ---- 标签滚动 ---- */
 .tag-scroll {
-    background: white;
+    background: var(--color-surface);
     white-space: nowrap;
-    border-bottom: 1rpx solid #f0f0f0;
+    border-bottom: 1rpx solid var(--color-divider);
 }
 
 .tag-list {
     display: inline-flex;
     padding: 16rpx 24rpx;
-    gap: 16rpx;
+    gap: 12rpx;
 }
 
 .tag-item {
     display: inline-flex;
     align-items: center;
-    padding: 8rpx 24rpx;
+    padding: 8rpx 22rpx;
     border-radius: 28rpx;
     font-size: 24rpx;
-    color: #666;
-    background: #F5F7FA;
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
     white-space: nowrap;
+    font-weight: 500;
+    transition: all var(--transition-fast);
 }
-
 .tag-item.active {
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
     color: white;
+    box-shadow: 0 4rpx 12rpx rgba(108, 92, 231, 0.25);
 }
 
 .tag-count {
     font-size: 20rpx;
     margin-left: 6rpx;
-    opacity: 0.7;
+    opacity: 0.75;
 }
 
-/* 动态卡片 */
+/* ---- 动态卡片 ---- */
 .feed-list {
     padding: 16rpx 24rpx;
 }
 
 .guide-card {
-    background: white;
-    border-radius: 16rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
     padding: 28rpx;
     margin-bottom: 20rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
+    transition: all var(--transition-fast);
+    animation: fadeInUp 0.35s ease both;
 }
-
 .guide-card:active {
-    background: #fafbff;
+    transform: scale(0.985);
+    box-shadow: var(--shadow-xs);
 }
 
 .card-header {
     display: flex;
     align-items: center;
-    margin-bottom: 20rpx;
+    margin-bottom: 18rpx;
 }
 
 .avatar {
     width: 72rpx;
     height: 72rpx;
     border-radius: 50%;
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 32rpx;
     font-weight: 600;
-    margin-right: 20rpx;
+    margin-right: 18rpx;
     flex-shrink: 0;
+    box-shadow: 0 4rpx 12rpx rgba(108, 92, 231, 0.2);
 }
 
 .user-info {
@@ -504,13 +521,13 @@ export default {
 .user-name {
     font-size: 30rpx;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text);
     display: block;
 }
 
 .post-time {
     font-size: 22rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     display: block;
     margin-top: 4rpx;
 }
@@ -521,15 +538,15 @@ export default {
 
 .content-text {
     font-size: 28rpx;
-    color: #333;
-    line-height: 1.6;
+    color: var(--color-text);
+    line-height: 1.7;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 6;
     overflow: hidden;
 }
 
-/* 图片网格 */
+/* ---- 图片网格 ---- */
 .card-images {
     display: flex;
     flex-wrap: wrap;
@@ -538,9 +555,9 @@ export default {
 }
 
 .grid-image-wrap {
-    border-radius: 8rpx;
+    border-radius: 10rpx;
     overflow: hidden;
-    background: #f0f0f0;
+    background: var(--color-bg);
 }
 
 .grid-image {
@@ -548,22 +565,11 @@ export default {
     height: 100%;
 }
 
-.grid-1 {
-    width: 400rpx;
-    height: 300rpx;
-}
+.grid-1 { width: 400rpx; height: 300rpx; }
+.grid-2 { width: 320rpx; height: 240rpx; }
+.grid-3 { width: 210rpx; height: 210rpx; }
 
-.grid-2 {
-    width: 320rpx;
-    height: 240rpx;
-}
-
-.grid-3 {
-    width: 210rpx;
-    height: 210rpx;
-}
-
-/* 视频封面 */
+/* ---- 视频封面 ---- */
 .card-video {
     margin-bottom: 16rpx;
 }
@@ -571,7 +577,7 @@ export default {
 .video-cover {
     width: 400rpx;
     height: 240rpx;
-    background: #1a1a2e;
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%);
     border-radius: 12rpx;
     display: flex;
     align-items: center;
@@ -580,26 +586,28 @@ export default {
 }
 
 .video-play-icon {
-    font-size: 60rpx;
+    font-size: 56rpx;
     color: white;
+    opacity: 0.9;
 }
 
 .video-duration {
     position: absolute;
     bottom: 12rpx;
     right: 12rpx;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8rpx);
     color: white;
     font-size: 22rpx;
     padding: 4rpx 12rpx;
     border-radius: 6rpx;
 }
 
-/* 标签 */
+/* ---- 标签 ---- */
 .card-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 12rpx;
+    gap: 10rpx;
     margin-bottom: 16rpx;
 }
 
@@ -608,9 +616,9 @@ export default {
     padding: 4rpx 16rpx;
     border-radius: 8rpx;
     font-size: 22rpx;
-    background: #EEF2FF;
-    color: #4F7CFF;
-    border: 1rpx solid #d4deff;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    font-weight: 500;
 }
 
 .location-tag {
@@ -618,15 +626,15 @@ export default {
     padding: 4rpx 16rpx;
     border-radius: 8rpx;
     font-size: 22rpx;
-    background: #F0F9FF;
-    color: #1890ff;
-    border: 1rpx solid #bae0ff;
+    background: var(--color-info-bg);
+    color: var(--color-info);
+    font-weight: 500;
 }
 
-/* 互动栏 */
+/* ---- 互动栏 ---- */
 .card-actions {
     display: flex;
-    border-top: 1rpx solid #f5f5f5;
+    border-top: 1rpx solid var(--color-divider);
     padding-top: 16rpx;
 }
 
@@ -635,88 +643,124 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8rpx;
+    gap: 6rpx;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     padding: 8rpx 0;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+.action-item:active {
+    background: var(--color-bg-secondary);
 }
 
 .action-item.liked {
-    color: #ff4d4f;
+    color: #EF4444;
 }
-
 .action-item.favorited {
-    color: #faad14;
+    color: #F59E0B;
 }
 
 .action-count {
     font-size: 24rpx;
 }
 
-/* 空状态 */
+/* ---- 空状态 ---- */
 .empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 120rpx 0;
 }
-
 .empty-icon {
     font-size: 80rpx;
     margin-bottom: 24rpx;
+    opacity: 0.5;
 }
-
 .empty-text {
     font-size: 28rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     text-align: center;
     padding: 0 60rpx;
 }
 
-/* 加载 */
+/* ---- 加载 ---- */
+.loading-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60rpx 0;
+    gap: 12rpx;
+    font-size: 26rpx;
+    color: var(--color-text-tertiary);
+}
+.spinner-ring {
+    width: 44rpx;
+    height: 44rpx;
+    border: 3rpx solid var(--color-border);
+    border-top: 3rpx solid var(--color-primary);
+    border-radius: 50%;
+    animation: feed-spin 0.7s linear infinite;
+}
+@keyframes feed-spin { to { transform: rotate(360deg); } }
+
+.loading-more-spin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    padding: 20rpx 0;
+    font-size: 26rpx;
+    color: var(--color-text-tertiary);
+}
+.mini-spinner {
+    width: 28rpx;
+    height: 28rpx;
+    border: 2rpx solid var(--color-border);
+    border-top: 2rpx solid var(--color-primary);
+    border-radius: 50%;
+    animation: feed-spin 0.7s linear infinite;
+}
 .loading {
     text-align: center;
     padding: 40rpx 0;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
 }
 
-.load-more {
-    padding: 20rpx 0;
-    text-align: center;
-}
-
+.load-more { padding: 20rpx 0; text-align: center; }
 .load-more-btn {
     padding: 20rpx;
     font-size: 28rpx;
-    color: #4F7CFF;
+    color: var(--color-primary);
+    font-weight: 500;
 }
-
 .no-more {
     padding: 20rpx;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
 }
 
-/* 悬浮发布按钮 */
+/* ---- 悬浮发布按钮 ---- */
 .fab-btn {
     position: fixed;
     right: 40rpx;
     bottom: 140rpx;
-    width: 100rpx;
-    height: 100rpx;
+    width: 104rpx;
+    height: 104rpx;
     border-radius: 50%;
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 24rpx rgba(79, 124, 255, 0.4);
+    box-shadow: 0 8rpx 28rpx rgba(108, 92, 231, 0.4);
     z-index: 100;
+    transition: all var(--transition-fast);
 }
-
 .fab-btn:active {
     transform: scale(0.9);
+    box-shadow: 0 4rpx 16rpx rgba(108, 92, 231, 0.25);
 }
 
 .fab-icon {

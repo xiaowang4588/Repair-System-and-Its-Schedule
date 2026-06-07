@@ -172,96 +172,39 @@ export default {
 </script>
 
 <style scoped>
-.page {
-    min-height: 100vh;
-    background: #F5F7FA;
-}
+.page { min-height: 100vh; background: var(--color-bg); }
+.container { padding: 24rpx; }
 
-.container {
-    padding: 24rpx;
-}
+.card { background: var(--color-surface); border-radius: var(--radius-lg); padding: 28rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm); border: 1rpx solid var(--color-border-light); }
+.card-title { font-size: 30rpx; font-weight: 700; color: var(--color-text); margin-bottom: 24rpx; padding-bottom: 16rpx; border-bottom: 1rpx solid var(--color-divider); }
 
-.form-select {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    height: 88rpx;
-    padding: 0 24rpx;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
-    font-size: 28rpx;
-    background: #fafafa;
-}
+.form-group { margin-bottom: 24rpx; }
+.form-label { font-size: 26rpx; color: var(--color-text-secondary); margin-bottom: 10rpx; display: block; font-weight: 500; }
 
-.arrow {
-    font-size: 24rpx;
-    color: #999;
-}
+.form-select { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 88rpx; padding: 0 24rpx; border: 2rpx solid var(--color-border); border-radius: var(--radius-sm); font-size: 28rpx; color: var(--color-text); background: var(--color-bg-secondary); box-sizing: border-box; }
+.arrow { font-size: 20rpx; color: var(--color-text-tertiary); }
 
-.result-count {
-    font-size: 28rpx;
-    color: #888;
-    margin-bottom: 24rpx;
-}
+.form-input { width: 100%; height: 88rpx; padding: 0 24rpx; border: 2rpx solid var(--color-border); border-radius: var(--radius-sm); font-size: 28rpx; color: var(--color-text); background: var(--color-bg-secondary); box-sizing: border-box; transition: all var(--transition-fast); }
+.form-input:focus { border-color: var(--color-primary); background: var(--color-surface); box-shadow: 0 0 0 4rpx rgba(108,92,231,0.06); }
 
-.count-num {
-    color: #4F7CFF;
-    font-weight: 600;
-    font-size: 32rpx;
-}
+.btn-primary { width: 100%; height: 88rpx; line-height: 88rpx; background: var(--color-primary-gradient); color: white; border: none; border-radius: var(--radius-md); font-size: 30rpx; font-weight: 600; box-shadow: 0 4rpx 16rpx rgba(108,92,231,0.25); transition: all var(--transition-fast); }
+.btn-primary:active { transform: translateY(2rpx) scale(0.98); }
 
-.result-item {
-    padding: 24rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
-}
+.result-count { font-size: 28rpx; color: var(--color-text-secondary); margin-bottom: 24rpx; }
+.count-num { color: var(--color-primary); font-weight: 700; font-size: 32rpx; }
 
-.result-item:last-child {
-    border-bottom: none;
-}
+.result-item { padding: 24rpx 0; border-bottom: 1rpx solid var(--color-divider); }
+.result-item:last-child { border-bottom: none; }
+.result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
+.result-name { font-size: 32rpx; font-weight: 700; color: var(--color-text); flex: 1; }
+.copy-btn { padding: 8rpx 22rpx; background: var(--color-accent-gradient); color: white; border-radius: var(--radius-xs); font-size: 24rpx; flex-shrink: 0; font-weight: 500; box-shadow: 0 2rpx 8rpx rgba(79,124,255,0.2); transition: all var(--transition-fast); }
+.copy-btn:active { transform: scale(0.93); }
 
-.result-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16rpx;
-}
+.result-row { display: flex; align-items: flex-start; padding: 8rpx 0; font-size: 26rpx; }
+.result-label { width: 120rpx; color: var(--color-text-tertiary); flex-shrink: 0; }
+.result-value { flex: 1; color: var(--color-text-secondary); }
 
-.result-name {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #333;
-    flex: 1;
-}
-
-.copy-btn {
-    padding: 8rpx 20rpx;
-    background: #4F7CFF;
-    color: white;
-    border-radius: 8rpx;
-    font-size: 24rpx;
-    flex-shrink: 0;
-}
-
-.copy-btn:active {
-    opacity: 0.8;
-}
-
-.result-row {
-    display: flex;
-    align-items: flex-start;
-    padding: 8rpx 0;
-    font-size: 26rpx;
-}
-
-.result-label {
-    width: 120rpx;
-    color: #999;
-    flex-shrink: 0;
-}
-
-.result-value {
-    flex: 1;
-    color: #555;
-}
+.empty { display: flex; flex-direction: column; align-items: center; padding: 60rpx 0; }
+.empty-icon { font-size: 80rpx; margin-bottom: 16rpx; opacity: 0.45; }
+.empty-text { font-size: 26rpx; color: var(--color-text-tertiary); }
 </style>

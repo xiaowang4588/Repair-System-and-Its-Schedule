@@ -45,6 +45,12 @@ class CacheManager:
         self._last_fail_time: float = 0
         self._fail_cooldown: float = 5.0  # 失败后 5 秒内不再重试
 
+        # 后台异步重载状态
+        self._async_reloading: bool = False
+        self._async_reload_started: float = 0
+        self._async_reload_result: Optional[bool] = None
+        self._async_lock = threading.Lock()
+
         # 初始加载
         self._load_data()
 
@@ -197,11 +203,69 @@ class CacheManager:
             success = self._load_data(raise_on_error=False)
             return success
 
+    def reload_async(self) -> bool:
+        """
+        在后台线程中异步重新加载数据（先创建新数据源，再加载）。
+        返回 True 表示后台线程已启动，False 表示已有重载在进行中。
+        使用 get_processing_status() 轮询进度。
+        """
+        with self._async_lock:
+            if self._async_reloading:
+                logger.info("后台重载已在进行中，跳过")
+                return False
+            self._async_reloading = True
+            self._async_reload_started = time.time()
+            self._async_reload_result = None
+
+        def _bg_reload():
+            try:
+                # 先尝试创建新数据源（与 reload() 逻辑一致）
+                try:
+                    from datasource.data_source import create_data_source
+                    new_source = create_data_source()
+                    with self._lock:
+                        self._data_source = new_source
+                        self._last_load_time = 0
+                        self._file_mtime = 0
+                except Exception as e:
+                    logger.warning(f"后台重载: 创建新数据源失败 ({e})，使用旧数据源")
+
+                self._load_data(raise_on_error=False)
+                with self._async_lock:
+                    self._async_reload_result = True
+            except Exception as e:
+                logger.error(f"后台重载异常: {e}")
+                with self._async_lock:
+                    self._async_reload_result = False
+            finally:
+                with self._async_lock:
+                    self._async_reloading = False
+
+        thread = threading.Thread(target=_bg_reload, daemon=True, name="cache-bg-reload")
+        thread.start()
+        logger.info("后台重载已启动")
+        return True
+
+    def get_processing_status(self) -> dict:
+        """返回后台处理状态（供前端轮询）"""
+        with self._async_lock:
+            status = {
+                "ready": not self._async_reloading,
+                "processing": self._async_reloading,
+                "started_at": self._async_reload_started,
+                "elapsed_seconds": round(time.time() - self._async_reload_started, 1) if self._async_reloading else 0,
+            }
+        with self._lock:
+            status["records"] = len(self._df) if self._df is not None else 0
+            status["last_error"] = self._last_error
+            status["source_available"] = self._data_source.is_available()
+        return status
+
     def get_status(self) -> dict:
         """返回缓存状态，用于监控"""
         # Bug9 修复: 加锁访问共享状态
         with self._lock:
-            return {
+            result = {
                 "source": self._data_source.get_source_name(),
                 "records": len(self._df) if self._df is not None else 0,
                 "last_load": self._last_load_time,
@@ -210,6 +274,10 @@ class CacheManager:
                 "last_error": self._last_error,
                 "source_available": self._data_source.is_available(),
             }
+        # 附加异步重载状态
+        with self._async_lock:
+            result["async_reloading"] = self._async_reloading
+        return result
 
     def test_connection(self) -> bool:
         """测试数据源连接是否正常"""

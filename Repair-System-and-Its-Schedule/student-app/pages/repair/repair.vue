@@ -177,7 +177,9 @@
             </view>
 
             <!-- 提交按钮 -->
-            <button class="btn-primary submit-btn" @click="submitRepair">📝 提交报修单</button>
+            <view class="submit-section">
+                <button class="submit-btn" @click="submitRepair">📝 提交报修单</button>
+            </view>
         </view>
     </view>
 </template>
@@ -502,29 +504,39 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
+    background: var(--color-bg);
 }
 
 .container {
     padding: 24rpx;
-    padding-bottom: 120rpx;
+    padding-bottom: 40rpx;
 }
 
+/* ---- 卡片 ---- */
 .card {
-    background: white;
-    border-radius: 16rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
     padding: 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
+    margin-bottom: 20rpx;
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
+    transition: all var(--transition-normal);
+}
+.card:active {
+    box-shadow: var(--shadow-xs);
+    transform: scale(0.985);
 }
 
 .card-title {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #333;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: var(--color-text);
     margin-bottom: 24rpx;
     padding-bottom: 16rpx;
-    border-bottom: 1rpx solid #f0f0f0;
+    border-bottom: 1rpx solid var(--color-divider);
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
 }
 
 .form-group {
@@ -532,54 +544,67 @@ export default {
 }
 
 .form-label {
-    font-size: 28rpx;
-    color: #555;
-    margin-bottom: 12rpx;
+    font-size: 26rpx;
+    color: var(--color-text-secondary);
+    margin-bottom: 10rpx;
     display: block;
+    font-weight: 500;
 }
 
 .form-input {
     width: 100%;
     height: 88rpx;
     padding: 0 24rpx;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     font-size: 28rpx;
-    background: #fafafa;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
+    transition: all var(--transition-fast);
 }
-
 .form-input:focus {
-    border-color: #4F7CFF;
-    background: white;
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 6rpx rgba(108, 92, 231, 0.06);
+}
+.form-input:disabled {
+    opacity: 0.6;
+    background: var(--color-bg);
 }
 
-.classroom-input-row {
-    display: flex;
-    gap: 16rpx;
-    align-items: center;
-}
-
-.classroom-input {
-    flex: 1;
-}
-
+/* ---- 一键匹配按钮 ---- */
 .btn-match {
     width: 100%;
     height: 88rpx;
     line-height: 88rpx;
-    background: #4F7CFF;
+    background: var(--color-accent-gradient);
     color: white;
     border: none;
-    border-radius: 12rpx;
+    border-radius: var(--radius-sm);
     font-size: 30rpx;
-    font-weight: 500;
+    font-weight: 600;
     text-align: center;
     margin-top: 16rpx;
+    box-shadow: 0 4rpx 16rpx rgba(79, 124, 255, 0.25);
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
 }
-
+.btn-match::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
 .btn-match:active {
-    opacity: 0.8;
+    transform: translateY(2rpx);
+    box-shadow: 0 2rpx 8rpx rgba(79, 124, 255, 0.15);
+}
+.btn-match:active::after {
+    opacity: 1;
 }
 
 .form-select {
@@ -589,41 +614,61 @@ export default {
     width: 100%;
     height: 88rpx;
     padding: 0 24rpx;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     font-size: 28rpx;
-    background: #fafafa;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
+    transition: all var(--transition-fast);
+}
+.form-select:active {
+    border-color: var(--color-primary-light);
+    background: var(--color-primary-bg);
 }
 
 .arrow {
-    font-size: 24rpx;
-    color: #999;
+    font-size: 20rpx;
+    color: var(--color-text-tertiary);
+    transition: transform var(--transition-fast);
+}
+.form-select:active .arrow {
+    color: var(--color-primary);
 }
 
 .form-textarea {
     width: 100%;
     height: 160rpx;
     padding: 16rpx 24rpx;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     font-size: 28rpx;
-    background: #fafafa;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
+    transition: all var(--transition-fast);
+    line-height: 1.6;
+}
+.form-textarea:focus {
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 6rpx rgba(108, 92, 231, 0.06);
 }
 
+/* ---- 课程信息卡片 ---- */
 .info-box {
-    background: #f8f9ff;
-    border: 1rpx solid #e0e6ff;
-    border-radius: 12rpx;
-    padding: 20rpx;
+    background: var(--color-primary-bg);
+    border: 1rpx solid rgba(108, 92, 231, 0.12);
+    border-radius: var(--radius-sm);
+    padding: 20rpx 20rpx 20rpx 28rpx;
     margin-top: 16rpx;
+    border-left: 6rpx solid var(--color-primary);
 }
 
 .info-title {
     font-size: 26rpx;
     font-weight: 600;
-    color: #4F7CFF;
+    color: var(--color-primary);
     margin-bottom: 12rpx;
 }
 
@@ -632,20 +677,21 @@ export default {
     padding: 8rpx 0;
     font-size: 26rpx;
 }
-
 .info-label {
     width: 80rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
 }
-
 .info-value {
     flex: 1;
-    color: #333;
+    color: var(--color-text);
+    font-weight: 500;
 }
 
+/* ---- 单选按钮组 ---- */
 .radio-group {
     display: flex;
-    gap: 16rpx;
+    gap: 12rpx;
 }
 
 .radio-item {
@@ -653,21 +699,25 @@ export default {
     height: 80rpx;
     line-height: 80rpx;
     text-align: center;
-    border: 1rpx solid #d9d9d9;
-    border-radius: 12rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     font-size: 28rpx;
-    color: #666;
-    background: white;
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    transition: all var(--transition-fast);
+    font-weight: 500;
 }
-
 .radio-item.active {
-    background: #4F7CFF;
-    color: white;
-    border-color: #4F7CFF;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    font-weight: 600;
+    box-shadow: 0 0 0 4rpx rgba(108, 92, 231, 0.08);
 }
 
+/* ---- 推荐列表 ---- */
 .recommend-list {
-    margin-top: 16rpx;
+    margin-top: 12rpx;
 }
 
 .recommend-item {
@@ -675,9 +725,16 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 20rpx;
-    background: #f8f9ff;
-    border-radius: 12rpx;
-    margin-bottom: 12rpx;
+    background: var(--color-primary-bg);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10rpx;
+    border: 1rpx solid rgba(108, 92, 231, 0.08);
+    transition: all var(--transition-fast);
+}
+.recommend-item:active {
+    transform: scale(0.98);
+    background: var(--color-accent-light);
+    box-shadow: var(--shadow-xs);
 }
 
 .recommend-left {
@@ -689,45 +746,53 @@ export default {
 .recommend-name {
     font-size: 28rpx;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text);
 }
 
 .recommend-tag {
     padding: 4rpx 12rpx;
-    border-radius: 8rpx;
-    font-size: 22rpx;
+    border-radius: var(--radius-xs);
+    font-size: 20rpx;
+    font-weight: 500;
 }
-
 .tag-same-floor {
-    background: #f6ffed;
-    border: 1rpx solid #b7eb8f;
-    color: #389e0d;
+    background: var(--color-success-bg);
+    color: var(--color-success);
 }
-
 .tag-same-building {
-    background: #e6f7ff;
-    border: 1rpx solid #91d5ff;
-    color: #1890ff;
+    background: var(--color-info-bg);
+    color: var(--color-info);
 }
 
 .recommend-action {
-    color: #4F7CFF;
-    font-size: 28rpx;
-    font-weight: 500;
+    color: var(--color-primary);
+    font-size: 26rpx;
+    font-weight: 600;
+    padding: 6rpx 16rpx;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-xs);
+    transition: all var(--transition-fast);
+}
+.recommend-item:active .recommend-action {
+    background: var(--color-primary);
+    color: white;
 }
 
 .show-more {
     text-align: center;
     padding: 16rpx 0;
-    color: #4F7CFF;
+    color: var(--color-primary);
     font-size: 26rpx;
-    cursor: pointer;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
 }
-
 .show-more:active {
     opacity: 0.7;
+    background: var(--color-primary-bg);
 }
 
+/* ---- 图片上传 ---- */
 .image-upload-area {
     margin-top: 8rpx;
 }
@@ -743,77 +808,99 @@ export default {
     width: 160rpx;
     height: 160rpx;
 }
-
 .preview-image {
     width: 100%;
     height: 100%;
-    border-radius: 8rpx;
+    border-radius: var(--radius-sm);
+    border: 1rpx solid var(--color-border);
+    box-shadow: var(--shadow-xs);
 }
 
 .image-delete {
     position: absolute;
     top: -12rpx;
     right: -12rpx;
-    width: 36rpx;
-    height: 36rpx;
-    background: #ff4d4f;
+    width: 40rpx;
+    height: 40rpx;
+    background: var(--color-danger);
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 24rpx;
+    box-shadow: 0 2rpx 10rpx rgba(239, 68, 68, 0.35);
+    transition: all var(--transition-fast);
+}
+.image-delete:active {
+    transform: scale(0.85);
+    box-shadow: 0 1rpx 4rpx rgba(239, 68, 68, 0.2);
 }
 
 .image-add {
     width: 160rpx;
     height: 160rpx;
-    border: 2rpx dashed #d9d9d9;
-    border-radius: 8rpx;
+    border: 2rpx dashed var(--color-border);
+    border-radius: var(--radius-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 8rpx;
+    background: var(--color-bg-secondary);
+    transition: all var(--transition-fast);
 }
-
 .image-add:active {
-    border-color: #4F7CFF;
-    background: #f8f9ff;
+    border-color: var(--color-primary-light);
+    background: var(--color-primary-bg);
+    border-style: solid;
+    transform: scale(0.95);
 }
 
-.add-icon {
-    font-size: 40rpx;
-}
-
-.add-text {
-    font-size: 22rpx;
-    color: #999;
-}
-
+.add-icon { font-size: 38rpx; opacity: 0.6; }
+.add-text { font-size: 22rpx; color: var(--color-text-tertiary); }
 .image-hint {
     font-size: 22rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     margin-top: 8rpx;
 }
 
-.submit-btn {
-    position: fixed;
-    bottom: 24rpx;
-    left: 24rpx;
-    right: 24rpx;
-    z-index: 100;
-    height: 88rpx;
-    line-height: 88rpx;
-    background: #4F7CFF;
-    color: white;
-    border: none;
-    border-radius: 12rpx;
-    font-size: 32rpx;
-    font-weight: 500;
+/* ---- 提交按钮区域 ---- */
+.submit-section {
+    margin-top: 8rpx;
+    padding: 0;
 }
 
+.submit-btn {
+    width: 100%;
+    height: 96rpx;
+    line-height: 96rpx;
+    background: var(--color-primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 32rpx;
+    font-weight: 600;
+    letter-spacing: 2rpx;
+    box-shadow: 0 8rpx 28rpx rgba(108, 92, 231, 0.35);
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.submit-btn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
 .submit-btn:active {
-    opacity: 0.8;
+    transform: scale(0.97);
+    box-shadow: 0 4rpx 12rpx rgba(108, 92, 231, 0.2);
+}
+.submit-btn:active::after {
+    opacity: 1;
 }
 </style>

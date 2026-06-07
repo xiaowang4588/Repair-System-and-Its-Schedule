@@ -1538,6 +1538,95 @@
             grid-column: 1 / -1;
         }
 
+        /* ============================================================
+           Skeleton 骨架屏（加载时占位，视觉连贯）
+           ============================================================ */
+        /* 报表 loading 遮罩 */
+        .section-loading {
+            position: relative;
+        }
+        .section-loading::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.6);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 全局 spinner */
+        .dash-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 0;
+            gap: 12px;
+            color: #9CA3AF;
+            font-size: 14px;
+        }
+        .dash-spinner-icon {
+            width: 24px; height: 24px;
+            border: 3px solid #E5E7EB;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 按钮内联 spinner */
+        .btn-spinner-inline {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid #E5E7EB;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        /* KPI 骨架 */
+        .kpi-skeleton {
+            background: linear-gradient(135deg, #f9fafb 25%, #e5e7eb 50%, #f9fafb 75%);
+            background-size: 200% 100%;
+            animation: skShimmer 1.5s ease-in-out infinite;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid transparent;
+        }
+        .kpi-skeleton-bar {
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            margin: 0 auto 8px auto;
+        }
+        .kpi-skeleton-bar.short { width: 60%; }
+        .kpi-skeleton-bar.mid { width: 50%; height: 24px; margin-bottom: 6px; }
+        .kpi-skeleton-bar.long { width: 80%; }
+        @keyframes skShimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* 表格骨架 */
+        .table-skeleton-row {
+            display: flex;
+            gap: 12px;
+            padding: 16px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .table-skeleton-cell {
+            height: 14px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            animation: skShimmer 1.5s ease-in-out infinite;
+        }
+
         @media (max-width: 1200px) {
             .drill-kpi { grid-template-columns: repeat(2, 1fr); }
             .drill-charts { grid-template-columns: 1fr; }
@@ -2529,6 +2618,33 @@
             }
         }
 
+        // 骨架屏工具函数
+        function showKpiSkeleton() {
+            const labels = ['报修总数', '待处理', '处理率', '平均处理周期', '教学周进度'];
+            return labels.map(() => `
+                <div class="kpi-skeleton">
+                    <div class="kpi-skeleton-bar short"></div>
+                    <div class="kpi-skeleton-bar mid"></div>
+                    <div class="kpi-skeleton-bar long"></div>
+                </div>
+            `).join('');
+        }
+
+        function showTableSkeleton(count) {
+            count = count || 8;
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += '<div class="table-skeleton-row">';
+                html += '<div class="table-skeleton-cell" style="flex:1"></div>';
+                html += '<div class="table-skeleton-cell" style="flex:1.5"></div>';
+                html += '<div class="table-skeleton-cell" style="flex:1"></div>';
+                html += '<div class="table-skeleton-cell" style="flex:2"></div>';
+                html += '<div class="table-skeleton-cell" style="flex:0.8"></div>';
+                html += '</div>';
+            }
+            return html;
+        }
+
         function showMsg(id, text, type) {
             const el = document.getElementById(id);
             if (el) { el.textContent = text; el.className = 'msg msg-' + type; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 5000); }
@@ -2715,14 +2831,16 @@
 
         // 加载大屏数据
         async function loadDashboard() {
+            // 显示骨架屏（不清除旧图表，保留视觉连续性）
+            document.getElementById('dashboardStats').innerHTML = showKpiSkeleton();
             try {
-                // 清理旧图表
-                dashCharts.forEach(c => { try { c.dispose(); } catch(e){} });
-                dashCharts = [];
-
                 const statsRes = await api(`/api/repair/dashboard-stats?range=${currentRange}`);
                 if (statsRes?.status !== 'ok') return;
                 const s = statsRes.data;
+
+                // 清理旧图表 — 新数据到达后才清除
+                dashCharts.forEach(c => { try { c.dispose(); } catch(e){} });
+                dashCharts = [];
 
                 // 更新数据源和周次
                 document.getElementById('dashWeek').textContent = s.current_week ? `第 ${s.current_week} 周` : '--';
@@ -3645,7 +3763,7 @@
             const empty = document.getElementById('repairEmpty');
             const table = document.getElementById('repairTable');
 
-            if (records.length === 0) {
+            if (records.length === 0 && !isLoadingMore) {
                 table.style.display = 'none';
                 empty.style.display = 'block';
                 return;
@@ -3918,6 +4036,9 @@
                 const res = await api('/api/repair/delete', { method: 'POST', body: { id: item.id } });
                 if (res.status === 'ok') {
                     showMsg('repairMsg', '删除成功', 'success');
+                    // 清理选中集，防止残留
+                    selectedIds.delete(item.id);
+                    updateBatchActions();
                     loadRepairList();
                 } else {
                     showMsg('repairMsg', res.message || '删除失败', 'error');
@@ -4210,9 +4331,15 @@
             const count = selectedIds.size;
             document.getElementById('selectedCount').textContent = count;
             document.getElementById('batchActions').style.display = count > 0 ? 'block' : 'none';
+            // 同步全选复选框状态：当前页全部勾选 → 全选打勾；否则取消
+            const selectAll = document.getElementById('selectAll');
+            const currentIds = allRepairRecords.map(r => r.id);
+            selectAll.checked = currentIds.length > 0 && currentIds.every(id => selectedIds.has(id));
+            selectAll.indeterminate = currentIds.some(id => selectedIds.has(id)) && !selectAll.checked;
         }
 
         async function batchUpdateStatus() {
+            if (selectedIds.size === 0) { showMsg('repairMsg', '请先选择要操作的记录', 'error'); return; }
             const status = document.getElementById('batchStatus').value;
             if (!status) { alert('请选择要修改的状态'); return; }
             if (!confirm(`确定要将 ${selectedIds.size} 条记录的状态改为"${status}"吗？`)) return;
@@ -4232,6 +4359,7 @@
         }
 
         async function batchUpdateHandler() {
+            if (selectedIds.size === 0) { showMsg('repairMsg', '请先选择要操作的记录', 'error'); return; }
             const handler = document.getElementById('batchHandler').value.trim();
             if (!handler) { alert('请输入处理人姓名'); return; }
             if (!confirm(`确定要将 ${selectedIds.size} 条记录的处理人设为"${handler}"吗？`)) return;
@@ -4251,19 +4379,39 @@
         }
 
         async function batchDelete() {
+            if (selectedIds.size === 0) {
+                showMsg('repairMsg', '请先选择要删除的记录', 'error');
+                return;
+            }
             if (!confirm(`确定要删除 ${selectedIds.size} 条记录吗？此操作不可恢复！`)) return;
 
+            const btn = document.querySelector('#batchActions .btn-danger');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="btn-spinner-inline"></span> 删除中...';
             try {
                 const res = await api('/api/repair/batch-delete', {
                     method: 'POST',
                     body: { ids: Array.from(selectedIds) }
                 });
                 if (res.status === 'ok') {
-                    showMsg('repairMsg', `成功删除 ${res.data.deleted_count} 条记录`, 'success');
+                    const deleted = res.data ? res.data.deleted_count : 0;
+                    showMsg('repairMsg', `成功删除 ${deleted} 条记录`, 'success');
+                    // 如果部分失败，给出提示
+                    if (res.data && res.data.failed_ids && res.data.failed_ids.length > 0) {
+                        console.warn('部分ID删除失败（可能已被删除或不存在）:', res.data.failed_ids);
+                    }
+                    selectedIds.clear();
+                    updateBatchActions();
                     loadRepairList();
+                } else {
+                    showMsg('repairMsg', res.message || '批量删除失败', 'error');
                 }
             } catch (e) {
                 showMsg('repairMsg', '批量删除失败: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
             }
         }
 
@@ -4384,6 +4532,37 @@
             }
         }
 
+        let _pollTimer = null;
+
+        function stopPolling() {
+            if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        }
+
+        async function pollProcessingStatus(onReady) {
+            stopPolling();
+            let attempts = 0;
+            const maxAttempts = 120; // 最多轮询 2 分钟
+            _pollTimer = setInterval(async () => {
+                attempts++;
+                try {
+                    const data = await api('/admin/cache/status');
+                    if (data.status === 'ok' && data.data.ready) {
+                        stopPolling();
+                        if (onReady) onReady(data.data);
+                    } else if (attempts >= maxAttempts) {
+                        stopPolling();
+                        showMsg('excelMsg', '数据处理超时，请手动点击刷新按钮', 'warning');
+                        if (onReady) onReady(null);
+                    }
+                } catch (e) {
+                    if (attempts >= maxAttempts) {
+                        stopPolling();
+                        if (onReady) onReady(null);
+                    }
+                }
+            }, 1000);
+        }
+
         function uploadFile() {
             if (!selectedFile) { showMsg('excelMsg', '请先选择文件', 'error'); return; }
 
@@ -4400,6 +4579,7 @@
             progressBar.style.width = '0%';
             progressBar.style.background = '#5BBF8A';
             progressText.textContent = '准备上传...';
+            stopPolling();
 
             const formData = new FormData();
             formData.append('file', selectedFile);
@@ -4411,40 +4591,47 @@
             xhr.upload.onprogress = function(e) {
                 if (e.lengthComputable) {
                     const pct = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = pct + '%';
+                    progressBar.style.width = Math.min(pct, 90) + '%';
                     progressText.textContent = '上传中 ' + pct + '%';
                 }
             };
 
-            xhr.upload.onload = function() {
-                progressBar.style.width = '100%';
-                progressText.textContent = '上传完成，正在处理...';
-            };
-
             xhr.onload = function() {
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                btn.textContent = '上传并使用';
                 try {
                     const data = JSON.parse(xhr.responseText);
                     if (data.status === 'ok') {
-                        progressText.textContent = '上传成功！';
+                        progressBar.style.width = '100%';
+                        progressBar.style.background = '#5BBF8A';
+                        progressText.textContent = '上传完成，后台处理中...';
                         showMsg('excelMsg', data.message, 'success');
                         selectedFile = null;
                         document.getElementById('uploadText').textContent = '点击选择课表文件';
-                        setTimeout(() => { progressWrap.style.display = 'none'; loadExcelList(); }, 1200);
-                    } else if (data.status === 'warning') {
-                        progressBar.style.background = '#FDCB6E';
-                        progressText.textContent = '已上传，加载有异常';
-                        showMsg('excelMsg', data.message, 'warning');
-                        setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+                        document.getElementById('uploadForm').classList.add('hidden');
+
+                        // 轮询后台处理状态
+                        pollProcessingStatus((result) => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.textContent = '上传并使用';
+                            if (result) {
+                                progressText.textContent = `处理完成！已加载 ${result.records} 条记录`;
+                                showMsg('excelMsg', `数据加载完成：${result.records} 条记录`, 'success');
+                            }
+                            setTimeout(() => { progressWrap.style.display = 'none'; loadExcelList(); }, 1500);
+                        });
                     } else {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        btn.textContent = '上传并使用';
                         progressBar.style.background = '#E17055';
                         progressText.textContent = '失败：' + (data.message || '未知错误');
                         showMsg('excelMsg', data.message || '上传失败', 'error');
                         setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
                     }
                 } catch (e) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.textContent = '上传并使用';
                     progressBar.style.background = '#E17055';
                     progressText.textContent = '服务器响应异常';
                     showMsg('excelMsg', '上传失败', 'error');
@@ -4488,23 +4675,59 @@
         }
 
         async function switchExcel(path) {
-            if (!confirm('确定要切换到此文件吗？')) return;
-            try { await api('/admin/excel/switch', { method: 'POST', body: { path } }); loadExcelList(); } catch (e) { showMsg('excelMsg', e.message, 'error'); }
+            if (!confirm('确定要切换到此文件吗？切换后数据将重新加载。')) return;
+
+            // 整个文件列表设为 loading 状态
+            const container = document.getElementById('fileList');
+            const origHtml = container.innerHTML;
+            container.innerHTML = '<div class="dash-spinner" style="padding:40px"><div class="dash-spinner-icon"></div><span>正在切换并加载数据...</span></div>';
+
+            try {
+                await api('/admin/excel/switch', { method: 'POST', body: { path } });
+                showMsg('excelMsg', '已切换文件，正在加载数据...', 'success');
+                // 轮询直到后台处理完成
+                pollProcessingStatus((result) => {
+                    if (result) {
+                        showMsg('excelMsg', `数据加载完成：${result.records} 条记录`, 'success');
+                    }
+                    loadExcelList();
+                });
+            } catch (e) {
+                container.innerHTML = origHtml;
+                showMsg('excelMsg', '切换失败: ' + e.message, 'error');
+                loadExcelList();
+            }
         }
 
         async function deleteExcel(path) {
             if (!confirm('确定要删除此文件吗？')) return;
-            try { await api('/admin/excel/delete', { method: 'POST', body: { path } }); loadExcelList(); } catch (e) { showMsg('excelMsg', e.message, 'error'); }
+
+            const container = document.getElementById('fileList');
+            container.innerHTML = '<div class="dash-spinner" style="padding:40px"><div class="dash-spinner-icon"></div><span>正在删除...</span></div>';
+
+            try {
+                await api('/admin/excel/delete', { method: 'POST', body: { path } });
+                showMsg('excelMsg', '已删除', 'success');
+            } catch (e) {
+                showMsg('excelMsg', '删除失败: ' + e.message, 'error');
+            }
+            loadExcelList();
         }
 
         async function clearAllExcel() {
             if (!confirm('确定要清除所有课表数据吗？\n\n这将：\n- 删除所有已上传的 Excel 文件\n- 重置数据源配置\n- 清空缓存数据\n\n此操作不可恢复！')) return;
             if (!confirm('再次确认：真的要清除所有数据吗？')) return;
+
+            const container = document.getElementById('fileList');
+            container.innerHTML = '<div class="dash-spinner" style="padding:40px"><div class="dash-spinner-icon"></div><span>正在清除...</span></div>';
+
             try {
                 const data = await api('/admin/excel/clear-all', { method: 'POST' });
                 showMsg('excelMsg', data.message, 'success');
-                loadExcelList();
-            } catch (e) { showMsg('excelMsg', '清除失败: ' + e.message, 'error'); }
+            } catch (e) {
+                showMsg('excelMsg', '清除失败: ' + e.message, 'error');
+            }
+            loadExcelList();
         }
 
         // ============================================================
@@ -4952,6 +5175,9 @@
 
         async function loadStudentList(page) {
             if (page) studentCurrentPage = page;
+            // 显示加载骨架
+            document.getElementById('studentTableBody').innerHTML =
+                '<tr><td colspan="6"><div class="dash-spinner"><div class="dash-spinner-icon"></div><span>加载中...</span></div></td></tr>';
             const keyword = document.getElementById('studentSearch').value.trim();
             try {
                 const res = await api(`/admin/students?keyword=${encodeURIComponent(keyword)}&page=${studentCurrentPage}&page_size=20`);
@@ -5175,9 +5401,10 @@
         // 系统日志
         // ============================================================
         async function loadLogs() {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = '<div class="dash-spinner"><div class="dash-spinner-icon"></div><span>加载中...</span></div>';
             try {
                 const data = await api('/admin/logs');
-                const container = document.getElementById('logContainer');
                 if (data.data.length === 0) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">暂无日志</div>'; return; }
                 container.innerHTML = data.data.map(log => {
                     let cls = 'log-level-info';

@@ -213,6 +213,89 @@ def generate_html_report(analysis: dict, advice: list) -> str:
             font-size: 13px;
             color: #888;
         }}
+        .advice-item .meta {{
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+        }}
+        .advice-item .meta .priority {{
+            background: #eee;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }}
+        .executive-summary {{
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid #667eea;
+        }}
+        .executive-summary h3 {{
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }}
+        .executive-summary .finding {{
+            margin: 8px 0;
+            padding-left: 16px;
+            line-height: 1.8;
+        }}
+        .health-grid {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }}
+        .health-card {{
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }}
+        .health-card.danger {{
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+        }}
+        .health-card.warning {{
+            background: #fffaf0;
+            border: 1px solid #fed7aa;
+        }}
+        .health-card.attention {{
+            background: #f0f7ff;
+            border: 1px solid #bfdbfe;
+        }}
+        .health-card.healthy {{
+            background: #f0fff4;
+            border: 1px solid #bbf7d0;
+        }}
+        .health-card .score {{
+            font-size: 36px;
+            font-weight: bold;
+        }}
+        .health-card.danger .score {{ color: #e74c3c; }}
+        .health-card.warning .score {{ color: #f39c12; }}
+        .health-card.attention .score {{ color: #3498db; }}
+        .health-card.healthy .score {{ color: #27ae60; }}
+        .health-card .room {{
+            font-size: 14px;
+            color: #333;
+            margin-top: 4px;
+        }}
+        .health-card .deductions {{
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }}
+        .profile-indicator {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }}
+        .profile-indicator.high {{ background: #e74c3c; }}
+        .profile-indicator.normal {{ background: #27ae60; }}
+        .profile-indicator.low {{ background: #3498db; }}
         .trend-up {{ color: #e74c3c; }}
         .trend-down {{ color: #27ae60; }}
         .trend-flat {{ color: #95a5a6; }}
@@ -246,6 +329,11 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
     fault = analysis.get('fault_analysis', {})
     area = analysis.get('area_analysis', {})
     time_analysis = analysis.get('time_analysis', {})
+    mwt = analysis.get('multi_week_trend', {})
+    health = analysis.get('equipment_health', {})
+    profile = analysis.get('building_profile', {})
+    rtm = analysis.get('response_time_matrix', {})
+    workload = analysis.get('workload_analysis', {})
     college = analysis.get('college_analysis', {})
 
     # 变化趋势
@@ -359,21 +447,122 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
     weekday_order = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
     weekday_data = [weekday_dist.get(d, 0) for d in weekday_order]
 
-    # 建议 HTML
+    # 建议 HTML（增强版：含优先级和影响评估）
     advice_html = ''
     for item in advice:
         level = item.get('level', 'info')
+        priority = item.get('priority', 5)
+        impact = item.get('impact', 'medium')
+        impact_label = {'high': '🔴 高影响', 'medium': '🟡 中影响', 'low': '🟢 低影响'}.get(impact, '')
         advice_html += f"""
         <div class="advice-item {level}">
-            <div class="title">{_get_level_icon(level)} {item.get('title', '')}</div>
+            <div class="title">{_get_level_icon(level)} [{item.get('category', '')}] {item.get('title', '')}</div>
             <div class="content">{item.get('content', '')}</div>
             <div class="action">💡 {item.get('action', '')}</div>
+            <div class="meta">
+                <span class="priority">优先级: {chr(9632) * min(priority, 10)}{chr(9633) * max(0, 10 - priority)}</span>
+                <span>{impact_label}</span>
+            </div>
         </div>"""
 
+    # ============ 执行摘要数据 ============
+    exec_findings = []
+    total_count = overview.get('total_count', 0)
+    if total_count > 0:
+        exec_findings.append(f'本周共收到报修{total_count}件，处理率{overview.get("resolved_rate", 0)}%')
+    mwt_trend_label = mwt.get('trend_label', '')
+    if '上升' in mwt_trend_label:
+        exec_findings.append(f'报修趋势{mwt_trend_label}，需关注增长态势')
+    elif '下降' in mwt_trend_label:
+        exec_findings.append(f'报修趋势{mwt_trend_label}，情况有所好转')
+    health_summary = health.get('summary', {})
+    unhealthy = health_summary.get('unhealthy_count', 0)
+    if unhealthy > 0:
+        exec_findings.append(f'{unhealthy}间教室设备健康度偏低，需安排检修')
+    pending_count = overview.get('pending_count', 0)
+    if pending_count > 0:
+        exec_findings.append(f'尚有{pending_count}条待处理工单（含{overview.get("unhandled_count", 0)}条未处理）')
+    attention = profile.get('attention_buildings', [])
+    if attention:
+        exec_findings.append(f'{"、".join(attention[:3])}楼栋多项指标异常，需专项排查')
+
+    # ============ 新增图表数据 ============
+    mwt_weeks = mwt.get('weeks', [])
+    trend_weeks_labels = str([w['week'] for w in mwt_weeks])
+    trend_total_data = str([w['total'] for w in mwt_weeks])
+    trend_resolved_data = str([w['resolved'] for w in mwt_weeks])
+    trend_pending_data = str([w['pending'] for w in mwt_weeks])
+    handler_names = str([h['handler'] for h in rtm.get('by_handler', [])])
+    handler_days = str([h['avg_process_days'] for h in rtm.get('by_handler', [])])
+
+    # ============ 设备健康卡片 ============
+    health_cards_html = ''
+    for item in health.get('this_week_problems', [])[:6]:
+        level = item.get('health_level', 'healthy')
+        health_cards_html += f"""
+        <div class="health-card {level}">
+            <div class="score">{item.get('health_score', 0)}</div>
+            <div class="room">📍 {item.get('classroom', '')}</div>
+            <div class="deductions">{'; '.join(item.get('deductions', [])[:2])}</div>
+        </div>"""
+
+    # ============ 楼栋画像表格 ============
+    profile_rows = ''
+    for building, info in profile.get('profiles', {}).items():
+        ext_indicator = 'high' if info.get('external_vs_avg') == 'high' else 'normal'
+        repl_indicator = 'high' if info.get('replace_vs_avg') == 'high' else 'normal'
+        proc_indicator = 'high' if info.get('process_vs_avg') == 'high' else ('low' if info.get('process_vs_avg') == 'low' else 'normal')
+        profile_rows += f"""
+        <tr>
+            <td><strong>{building}</strong></td>
+            <td>{info.get('this_week_count', 0)}/{info.get('semester_total', 0)}</td>
+            <td>{info.get('typical_fault_label', '')[:40]}</td>
+            <td><span class="profile-indicator {ext_indicator}"></span>{info.get('external_ratio', 0)}%</td>
+            <td><span class="profile-indicator {repl_indicator}"></span>{info.get('replace_ratio', 0)}%</td>
+            <td><span class="profile-indicator {proc_indicator}"></span>{info.get('avg_process_days', 0)}天</td>
+        </tr>"""
+
+    # ============ 响应时效表格 ============
+    response_rows = ''
+    for h in rtm.get('by_handler', []):
+        on_time_cls = 'badge-success' if h.get('on_time_rate', 0) >= 80 else ('badge-warning' if h.get('on_time_rate', 0) >= 50 else 'badge-danger')
+        response_rows += f"""
+        <tr>
+            <td>{h.get('handler', '')}</td>
+            <td>{h.get('total', 0)}</td>
+            <td>{h.get('completed_rate', 0)}%</td>
+            <td>{h.get('avg_process_days', 0)}天</td>
+            <td><span class="badge {on_time_cls}">{h.get('on_time_rate', 0)}%</span></td>
+            <td>{h.get('classroom_count', 0)}</td>
+        </tr>"""
+
+    # ============ 工作负载表格 ============
+    workload_rows = ''
+    for h in workload.get('handlers', []):
+        workload_rows += f"""
+        <tr>
+            <td>{h.get('handler', '')}</td>
+            <td>{h.get('semester_total', 0)}</td>
+            <td>{h.get('completed_rate', 0)}%</td>
+            <td>{h.get('pending', 0)}</td>
+            <td>{h.get('daily_avg', 0):.2f}</td>
+        </tr>"""
+
     return f"""
-    <!-- 一、本周概览 -->
+    <!-- 执行摘要 -->
     <div class="section">
-        <div class="section-title">一、本周概览</div>
+        <div class="section-title">📋 执行摘要</div>
+        <div class="executive-summary">
+            <p>本报告覆盖{analysis.get('date_range', {}).get('label', '')}的运维数据。主要发现：</p>
+            <div class="finding">
+                {"".join(f'<p>• {f}</p>' for f in exec_findings) if exec_findings else '<p>本周运维情况正常，无特别关注事项。</p>'}
+            </div>
+        </div>
+    </div>
+
+    <!-- 一、核心指标 -->
+    <div class="section">
+        <div class="section-title">一、核心指标（环比上周）</div>
         <div class="kpi-grid">
             <div class="kpi-card">
                 <div class="value">{overview.get('total_count', 0)}</div>
@@ -393,20 +582,55 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
                 <div class="label">处理率</div>
                 <div class="change {rate_class}">较上周 {rate_change:+.1f}%</div>
             </div>
+            <div class="kpi-card">
+                <div class="value">{overview.get('external_teacher_count', 0)}</div>
+                <div class="label">外聘教师报修</div>
+            </div>
+            <div class="kpi-card">
+                <div class="value">{overview.get('device_replace_count', 0)}</div>
+                <div class="label">设备更换</div>
+            </div>
+            <div class="kpi-card">
+                <div class="value">{overview.get('classroom_count', 0)}</div>
+                <div class="label">涉及教室</div>
+            </div>
+            <div class="kpi-card">
+                <div class="value">{overview.get('building_count', 0)}</div>
+                <div class="label">涉及楼栋</div>
+            </div>
         </div>
     </div>
 
-    <!-- 二、本周报修明细 -->
+    <!-- 二、多周趋势 -->
+    <div class="section">
+        <div class="section-title">二、近{mwt.get("week_count", 4)}周趋势
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">{mwt.get("summary", "")}</span>
+        </div>
+        <div class="chart-container" id="trendChart"></div>
+    </div>
+
+    <!-- 三、设备健康度 -->
+    <div class="section">
+        <div class="section-title">三、设备健康度
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">
+                全校均分 {health.get("summary", {}).get("avg_score", 0)}，{health.get("summary", {}).get("unhealthy_count", 0)} 间不健康
+            </span>
+        </div>
+        {f'<div class="health-grid">{health_cards_html}</div>' if health_cards_html else '<p style="color:#27ae60">✅ 本周所有教室设备健康度正常</p>'}
+        {f'<p style="color:#999;font-size:13px;">仅显示本周有报修且健康度偏低的教室</p>' if health_cards_html else ''}
+    </div>
+
+    <!-- 四、本周报修明细 -->
     <div class="section">
         <div class="section-title">二、本周报修明细</div>
         {classroom_html if classroom_html else '<p style="color:#999">本周暂无报修记录</p>'}
     </div>
 
-    <!-- 三、周对比分析 -->
+    <!-- 五、周对比分析 -->
     <div class="section">
-        <div class="section-title">三、周对比分析</div>
+        <div class="section-title">五、周对比分析</div>
 
-        <h4 style="margin-bottom: 12px;">3.1 整体对比</h4>
+        <h4 style="margin-bottom: 12px;">5.1 整体对比</h4>
         <table>
             <thead>
                 <tr>
@@ -422,7 +646,7 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
             </tbody>
         </table>
 
-        <h4 style="margin: 24px 0 12px;">3.2 故障类型对比</h4>
+        <h4 style="margin: 24px 0 12px;">5.2 故障类型对比</h4>
         <table>
             <thead>
                 <tr>
@@ -438,7 +662,7 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
             </tbody>
         </table>
 
-        <h4 style="margin: 24px 0 12px;">3.3 楼栋对比</h4>
+        <h4 style="margin: 24px 0 12px;">5.3 楼栋对比</h4>
         <table>
             <thead>
                 <tr>
@@ -455,31 +679,113 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
         </table>
     </div>
 
-    <!-- 四、故障分析 -->
+    <!-- 六、楼栋特征画像 -->
     <div class="section">
-        <div class="section-title">四、故障分析</div>
+        <div class="section-title">六、楼栋特征画像</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>楼栋</th>
+                    <th>本周/学期</th>
+                    <th>典型故障模式</th>
+                    <th>外聘比</th>
+                    <th>更换率</th>
+                    <th>平均处理</th>
+                </tr>
+            </thead>
+            <tbody>
+                {profile_rows}
+            </tbody>
+        </table>
+        <p style="color:#999;font-size:12px;margin-top:8px;">●红色 = 高于全校均值 ●绿色 = 正常 ●蓝色 = 低于均值</p>
+    </div>
+
+    <!-- 七、故障分析 -->
+    <div class="section">
+        <div class="section-title">七、故障分析</div>
         <div class="chart-container" id="faultChart"></div>
     </div>
 
-    <!-- 五、区域分析 -->
+    <!-- 八、区域分析 -->
     <div class="section">
-        <div class="section-title">五、区域分析</div>
+        <div class="section-title">八、区域分析</div>
         <div class="chart-container" id="buildingChart"></div>
     </div>
 
-    <!-- 六、时间分析 -->
+    <!-- 九、响应时效 -->
     <div class="section">
-        <div class="section-title">六、时间分析</div>
+        <div class="section-title">九、响应时效分析</div>
+        <div class="chart-container" id="responseChart"></div>
+        <table>
+            <thead>
+                <tr><th>处理人</th><th>总量</th><th>完成率</th><th>平均天数</th><th>按时率</th><th>覆盖教室</th></tr>
+            </thead>
+            <tbody>{response_rows}</tbody>
+        </table>
+    </div>
+
+    <!-- 十、时间分析 -->
+    <div class="section">
+        <div class="section-title">十、时间分析</div>
         <div class="chart-container" id="weekdayChart"></div>
     </div>
 
-    <!-- 七、智能建议 -->
+    <!-- 十一、工作负载 -->
     <div class="section">
-        <div class="section-title">七、智能建议</div>
+        <div class="section-title">十一、工作负载
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">{workload.get("balance_assessment", "")}</span>
+        </div>
+        <table>
+            <thead>
+                <tr><th>处理人</th><th>学期总量</th><th>完成率</th><th>待处理</th><th>日均</th></tr>
+            </thead>
+            <tbody>{workload_rows}</tbody>
+        </table>
+    </div>
+
+    <!-- 十二、智能建议 -->
+    <div class="section">
+        <div class="section-title">十二、智能建议
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">共{len(advice)}条，按优先级排序</span>
+        </div>
         {advice_html if advice_html else '<p style="color:#999">暂无建议</p>'}
     </div>
 
     <script>
+        // 多周趋势折线图
+        var trendChart = echarts.init(document.getElementById('trendChart'));
+        trendChart.setOption({{
+            title: {{ text: '报修趋势（近{mwt.get("week_count", 4)}周）', left: 'center' }},
+            tooltip: {{ trigger: 'axis' }},
+            legend: {{ data: ['报修总量', '已处理', '待处理'], bottom: 0 }},
+            xAxis: {{ type: 'category', data: {trend_weeks_labels} }},
+            yAxis: {{ type: 'value', name: '数量' }},
+            series: [
+                {{
+                    name: '报修总量',
+                    type: 'line',
+                    data: {trend_total_data},
+                    smooth: true,
+                    itemStyle: {{ color: '#667eea' }},
+                    areaStyle: {{ opacity: 0.1 }}
+                }},
+                {{
+                    name: '已处理',
+                    type: 'line',
+                    data: {trend_resolved_data},
+                    smooth: true,
+                    itemStyle: {{ color: '#27ae60' }}
+                }},
+                {{
+                    name: '待处理',
+                    type: 'line',
+                    data: {trend_pending_data},
+                    smooth: true,
+                    itemStyle: {{ color: '#e74c3c' }}
+                }}
+            ]
+        }});
+
         // 故障类型饼图
         var faultChart = echarts.init(document.getElementById('faultChart'));
         faultChart.setOption({{
@@ -516,6 +822,26 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
             }}]
         }});
 
+        // 响应时效柱状图
+        var responseChart = echarts.init(document.getElementById('responseChart'));
+        responseChart.setOption({{
+            title: {{ text: '处理人平均响应天数', left: 'center' }},
+            tooltip: {{ trigger: 'axis' }},
+            xAxis: {{ type: 'category', data: {handler_names}, axisLabel: {{ rotate: 30 }} }},
+            yAxis: {{ type: 'value', name: '天数' }},
+            series: [{{
+                type: 'bar',
+                data: {handler_days},
+                itemStyle: {{
+                    color: '#f39c12',
+                    borderRadius: [4, 4, 0, 0]
+                }},
+                markLine: {{
+                    data: [{{ yAxis: 2, label: {{ formatter: '2天标准' }}, lineStyle: {{ color: '#e74c3c', type: 'dashed' }} }}]
+                }}
+            }}]
+        }});
+
         // 周几分布柱状图
         var weekdayChart = echarts.init(document.getElementById('weekdayChart'));
         weekdayChart.setOption({{
@@ -535,8 +861,10 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
 
         // 响应式
         window.addEventListener('resize', function() {{
+            trendChart.resize();
             faultChart.resize();
             buildingChart.resize();
+            responseChart.resize();
             weekdayChart.resize();
         }});
     </script>
@@ -544,23 +872,57 @@ def _generate_weekly_content(analysis: dict, advice: list) -> str:
 
 
 def _generate_monthly_content(analysis: dict, advice: list) -> str:
-    """生成月报内容（简化版，结构类似周报）"""
-    # 月报结构与周报类似，但没有教室明细和周对比
+    """生成月报内容 v3.0 增强版"""
     overview = analysis.get('overview', {})
     fault = analysis.get('fault_analysis', {})
     area = analysis.get('area_analysis', {})
     time_analysis = analysis.get('time_analysis', {})
+    health = analysis.get('equipment_health', {})
+    profile = analysis.get('building_profile', {})
+    rtm = analysis.get('response_time_matrix', {})
+    workload = analysis.get('workload_analysis', {})
 
-    # 建议 HTML
+    # 建议 HTML（增强版：含优先级和影响评估）
     advice_html = ''
     for item in advice:
         level = item.get('level', 'info')
+        priority = item.get('priority', 5)
+        impact = item.get('impact', 'medium')
+        impact_label = {'high': '🔴 高影响', 'medium': '🟡 中影响', 'low': '🟢 低影响'}.get(impact, '')
         advice_html += f"""
         <div class="advice-item {level}">
-            <div class="title">{_get_level_icon(level)} {item.get('title', '')}</div>
+            <div class="title">{_get_level_icon(level)} [{item.get('category', '')}] {item.get('title', '')}</div>
             <div class="content">{item.get('content', '')}</div>
             <div class="action">💡 {item.get('action', '')}</div>
+            <div class="meta">
+                <span class="priority">优先级: {chr(9632) * min(priority, 10)}{chr(9633) * max(0, 10 - priority)}</span>
+                <span>{impact_label}</span>
+            </div>
         </div>"""
+
+    # 楼栋画像
+    m_profile_rows = ''
+    for building, info in profile.get('profiles', {}).items():
+        m_profile_rows += f"""
+        <tr>
+            <td><strong>{building}</strong></td>
+            <td>{info.get('semester_total', 0)}</td>
+            <td>{info.get('typical_fault_label', '')[:40]}</td>
+            <td>{info.get('avg_process_days', 0)}天</td>
+        </tr>"""
+
+    # 健康度
+    m_health_cards = ''
+    for item in health.get('this_week_problems', [])[:4]:
+        m_health_cards += f"""
+        <div class="health-card {item.get('health_level', 'healthy')}">
+            <div class="score">{item.get('health_score', 0)}</div>
+            <div class="room">📍 {item.get('classroom', '')}</div>
+        </div>"""
+
+    # 故障分布数据
+    type_dist = fault.get('type_distribution', {})
+    pie_data = str([{'value': v, 'name': k} for k, v in type_dist.items()])
 
     return f"""
     <div class="section">
@@ -586,30 +948,115 @@ def _generate_monthly_content(analysis: dict, advice: list) -> str:
     </div>
 
     <div class="section">
-        <div class="section-title">二、智能建议</div>
+        <div class="section-title">二、设备健康度</div>
+        {f'<div class="health-grid">{m_health_cards}</div>' if m_health_cards else '<p style="color:#27ae60">✅ 当前无健康度异常教室</p>'}
+    </div>
+
+    <div class="section">
+        <div class="section-title">三、楼栋特征</div>
+        <table>
+            <thead>
+                <tr><th>楼栋</th><th>本月报修</th><th>典型故障</th><th>平均处理</th></tr>
+            </thead>
+            <tbody>{m_profile_rows}</tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">四、故障分布</div>
+        <div class="chart-container" id="faultChart"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">五、工作负载概览
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">{workload.get("balance_assessment", "")}</span>
+        </div>
+        <table>
+            <thead>
+                <tr><th>处理人</th><th>本月总量</th><th>完成率</th><th>待处理</th></tr>
+            </thead>
+            <tbody>
+                {"".join(f'<tr><td>{h.get("handler", "")}</td><td>{h.get("semester_total", 0)}</td><td>{h.get("completed_rate", 0)}%</td><td>{h.get("pending", 0)}</td></tr>' for h in workload.get("handlers", []))}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">六、智能建议
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">共{len(advice)}条</span>
+        </div>
         {advice_html if advice_html else '<p style="color:#999">暂无建议</p>'}
     </div>
+
+    <script>
+        var faultChart = echarts.init(document.getElementById('faultChart'));
+        faultChart.setOption({{
+            title: {{ text: '故障类型分布', left: 'center' }},
+            tooltip: {{ trigger: 'item', formatter: '{{b}}: {{c}}件 ({{d}}%)' }},
+            series: [{{
+                type: 'pie',
+                radius: '60%',
+                data: {pie_data},
+            }}]
+        }});
+        window.addEventListener('resize', function() {{ faultChart.resize(); }});
+    </script>
 """
 
 
 def _generate_semester_content(analysis: dict, advice: list) -> str:
-    """生成学期报告内容"""
+    """生成学期报告内容 v3.0 增强版"""
     overview = analysis.get('overview', {})
     weekly_stats = analysis.get('weekly_stats', {})
+    health = analysis.get('equipment_health', {})
+    profile = analysis.get('building_profile', {})
+    workload = analysis.get('workload_analysis', {})
+    fault = analysis.get('fault_analysis', {})
 
     # 周趋势图数据
     weeks = list(weekly_stats.keys())
     counts = list(weekly_stats.values())
 
-    # 建议 HTML
+    # 故障分布
+    type_dist = fault.get('type_distribution', {})
+    pie_data = str([{'value': v, 'name': k} for k, v in type_dist.items()])
+
+    # 楼栋数据
+    s_profile_rows = ''
+    for building, info in profile.get('profiles', {}).items():
+        s_profile_rows += f"""
+        <tr>
+            <td><strong>{building}</strong></td>
+            <td>{info.get('semester_total', 0)}</td>
+            <td>{info.get('typical_fault_label', '')[:40]}</td>
+            <td>{info.get('avg_process_days', 0)}天</td>
+        </tr>"""
+
+    # 建议 HTML（增强版：含优先级和影响评估）
     advice_html = ''
     for item in advice:
         level = item.get('level', 'info')
+        priority = item.get('priority', 5)
+        impact = item.get('impact', 'medium')
+        impact_label = {'high': '🔴 高影响', 'medium': '🟡 中影响', 'low': '🟢 低影响'}.get(impact, '')
         advice_html += f"""
         <div class="advice-item {level}">
-            <div class="title">{_get_level_icon(level)} {item.get('title', '')}</div>
+            <div class="title">{_get_level_icon(level)} [{item.get('category', '')}] {item.get('title', '')}</div>
             <div class="content">{item.get('content', '')}</div>
             <div class="action">💡 {item.get('action', '')}</div>
+            <div class="meta">
+                <span class="priority">优先级: {chr(9632) * min(priority, 10)}{chr(9633) * max(0, 10 - priority)}</span>
+                <span>{impact_label}</span>
+            </div>
+        </div>"""
+
+    # 健康度卡片
+    s_health_cards = ''
+    for item in health.get('this_week_problems', [])[:4]:
+        s_health_cards += f"""
+        <div class="health-card {item.get('health_level', 'healthy')}">
+            <div class="score">{item.get('health_score', 0)}</div>
+            <div class="room">📍 {item.get('classroom', '')}</div>
         </div>"""
 
     return f"""
@@ -625,12 +1072,20 @@ def _generate_semester_content(analysis: dict, advice: list) -> str:
                 <div class="label">已处理</div>
             </div>
             <div class="kpi-card">
+                <div class="value">{overview.get('resolved_rate', 0)}%</div>
+                <div class="label">处理率</div>
+            </div>
+            <div class="kpi-card">
                 <div class="value">{overview.get('classroom_count', 0)}</div>
                 <div class="label">涉及教室</div>
             </div>
             <div class="kpi-card">
                 <div class="value">{overview.get('building_count', 0)}</div>
                 <div class="label">涉及楼栋</div>
+            </div>
+            <div class="kpi-card">
+                <div class="value">{overview.get('college_count', 0)}</div>
+                <div class="label">涉及学院</div>
             </div>
         </div>
     </div>
@@ -641,7 +1096,41 @@ def _generate_semester_content(analysis: dict, advice: list) -> str:
     </div>
 
     <div class="section">
-        <div class="section-title">三、智能建议</div>
+        <div class="section-title">三、故障分布</div>
+        <div class="chart-container" id="faultChart"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">四、设备健康度排行</div>
+        {f'<div class="health-grid">{s_health_cards}</div>' if s_health_cards else '<p style="color:#27ae60">✅ 当前无健康度异常教室</p>'}
+    </div>
+
+    <div class="section">
+        <div class="section-title">五、楼栋特征</div>
+        <table>
+            <thead>
+                <tr><th>楼栋</th><th>学期报修</th><th>典型故障</th><th>平均处理</th></tr>
+            </thead>
+            <tbody>{s_profile_rows}</tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">六、工作负载</div>
+        <table>
+            <thead>
+                <tr><th>处理人</th><th>学期总量</th><th>完成率</th><th>待处理</th></tr>
+            </thead>
+            <tbody>
+                {"".join(f'<tr><td>{h.get("handler", "")}</td><td>{h.get("semester_total", 0)}</td><td>{h.get("completed_rate", 0)}%</td><td>{h.get("pending", 0)}</td></tr>' for h in workload.get("handlers", []))}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">七、智能建议
+            <span style="font-size:14px;font-weight:normal;color:#666;margin-left:12px;">共{len(advice)}条</span>
+        </div>
         {advice_html if advice_html else '<p style="color:#999">暂无建议</p>'}
     </div>
 
@@ -661,8 +1150,20 @@ def _generate_semester_content(analysis: dict, advice: list) -> str:
             }}]
         }});
 
+        var faultChart = echarts.init(document.getElementById('faultChart'));
+        faultChart.setOption({{
+            title: {{ text: '故障类型分布', left: 'center' }},
+            tooltip: {{ trigger: 'item', formatter: '{{b}}: {{c}}件 ({{d}}%)' }},
+            series: [{{
+                type: 'pie',
+                radius: '60%',
+                data: {pie_data},
+            }}]
+        }});
+
         window.addEventListener('resize', function() {{
             trendChart.resize();
+            faultChart.resize();
         }});
     </script>
 """

@@ -129,21 +129,21 @@ def create_classroom_index(cleaned_df: pd.DataFrame) -> Dict[str, Dict[str, Set[
     返回格式：{weekday: {classroom: set(sections)}}
     """
     classroom_index = {}
-    
-    for _, row in cleaned_df.iterrows():
-        weekday = row['weekday']
-        sections = row['section_list']
-        classrooms = row['classroom_list']
-        
+
+    for row in cleaned_df.itertuples(index=False):
+        weekday = row.weekday
+        sections = row.section_list
+        classrooms = row.classroom_list
+
         if weekday not in classroom_index:
             classroom_index[weekday] = {}
-        
+
         for classroom in classrooms:
             if classroom not in classroom_index[weekday]:
                 classroom_index[weekday][classroom] = set()
-            
+
             classroom_index[weekday][classroom].update(sections)
-    
+
     return classroom_index
 
 def get_all_classrooms(cleaned_df: pd.DataFrame) -> Set[str]:
@@ -160,10 +160,10 @@ def get_buildings(cleaned_df: pd.DataFrame) -> Dict[str, Set[str]]:
     获取楼栋和教室的映射关系
     """
     buildings = {}
-    for _, row in cleaned_df.iterrows():
-        for i, classroom in enumerate(row['classroom_list']):
-            if i < len(row['building_list']):
-                building = row['building_list'][i]
+    for row in cleaned_df.itertuples(index=False):
+        for i, classroom in enumerate(row.classroom_list):
+            if i < len(row.building_list):
+                building = row.building_list[i]
                 if building not in buildings:
                     buildings[building] = set()
                 buildings[building].add(classroom)

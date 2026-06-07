@@ -97,6 +97,9 @@ class Repair(BaseModel):
             (('report_time',), False),
             (('student_id',), False),
             (('semester',), False),
+            (('handler_name',), False),
+            (('reporter_college',), False),
+            (('fault_type',), False),
         )
 
     def to_dict(self) -> dict:

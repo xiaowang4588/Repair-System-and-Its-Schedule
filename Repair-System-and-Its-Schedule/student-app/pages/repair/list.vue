@@ -71,7 +71,13 @@
                     <text class="modal-title">报修详情</text>
                     <text class="modal-close" @click="closeDetail">✕</text>
                 </view>
-                <view class="modal-body" v-if="detailData">
+                <view class="modal-body" v-if="loadingDetail">
+                    <view class="loading-spinner-wrap">
+                        <view class="spinner-ring"></view>
+                        <text>加载中...</text>
+                    </view>
+                </view>
+                <view class="modal-body" v-else-if="detailData">
                     <view class="detail-row">
                         <text class="detail-label">故障教室</text>
                         <text class="detail-value">{{ detailData.classroom || '-' }}</text>
@@ -266,6 +272,7 @@ export default {
             hasMore: true,
             showDetail: false,
             detailData: null,
+            loadingDetail: false,
             showEdit: false,
             faultTypeOptions: ['中控', '电脑', '投影仪', '音响', '麦克风', '展台', '幕布', '网络', '软件', '其他'],
             reportMethodOptions: ['多媒体报修群', '电话', '其他'],
@@ -405,6 +412,9 @@ export default {
 
         // 查看详情
         async viewDetail(item) {
+            this.showDetail = true
+            this.loadingDetail = true
+            this.detailData = null
             try {
                 const res = await request('/api/repair/drill/repair', { id: item.id })
                 if (res && res.status === 'ok') {
@@ -416,7 +426,7 @@ export default {
             } catch (err) {
                 this.detailData = item
             } finally {
-                this.showDetail = true
+                this.loadingDetail = false
             }
         },
 
@@ -603,21 +613,22 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
+    background: var(--color-bg);
 }
 
 .container {
     padding: 24rpx;
 }
 
-/* 全部/我的切换 */
+/* ---- 全部/我的切换 ---- */
 .toggle-bar {
     display: flex;
-    background: white;
-    border-radius: 16rpx;
-    padding: 8rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 6rpx;
     margin-bottom: 16rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
 }
 
 .toggle-item {
@@ -626,203 +637,210 @@ export default {
     line-height: 68rpx;
     text-align: center;
     font-size: 28rpx;
-    color: #666;
-    border-radius: 12rpx;
-    transition: all 0.2s;
-}
-
-.toggle-item.active {
-    background: #4F7CFF;
-    color: white;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-normal);
     font-weight: 500;
 }
+.toggle-item.active {
+    background: var(--color-primary-gradient);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4rpx 12rpx rgba(108, 92, 231, 0.25);
+}
 
-/* 状态筛选 */
+/* ---- 状态筛选 ---- */
 .filter-bar {
     display: flex;
-    background: white;
-    border-radius: 16rpx;
-    padding: 8rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+    gap: 12rpx;
+    margin-bottom: 20rpx;
 }
 
 .filter-item {
     flex: 1;
-    height: 64rpx;
-    line-height: 64rpx;
+    height: 60rpx;
+    line-height: 60rpx;
     text-align: center;
     font-size: 26rpx;
-    color: #666;
-    border-radius: 10rpx;
-    transition: all 0.2s;
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border-radius: var(--radius-full);
+    transition: all var(--transition-fast);
+    font-weight: 500;
+    border: 1rpx solid var(--color-border-light);
 }
-
 .filter-item.active {
-    background: #4F7CFF;
-    color: white;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    border-color: var(--color-primary-light);
+    font-weight: 600;
 }
 
-/* 报修列表 */
+/* ---- 报修列表 ---- */
 .repair-item {
-    background: white;
-    border-radius: 16rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
     padding: 28rpx;
-    margin-bottom: 20rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+    margin-bottom: 16rpx;
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
+    transition: all var(--transition-fast);
+    animation: fadeInUp 0.3s ease both;
 }
-
 .repair-item:active {
-    background: #f8f9ff;
+    transform: scale(0.985);
+    box-shadow: var(--shadow-xs);
+    background: var(--color-bg-secondary);
 }
 
 .repair-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12rpx;
+    margin-bottom: 10rpx;
 }
 
 .repair-room {
     font-size: 32rpx;
-    font-weight: 600;
-    color: #333;
+    font-weight: 700;
+    color: var(--color-text);
 }
 
 .repair-status {
-    padding: 4rpx 16rpx;
-    border-radius: 8rpx;
-    font-size: 24rpx;
+    padding: 4rpx 14rpx;
+    border-radius: var(--radius-xs);
+    font-size: 22rpx;
+    font-weight: 600;
+    letter-spacing: 0.5rpx;
 }
 
 .status-done {
-    background: #f6ffed;
-    border: 1rpx solid #b7eb8f;
-    color: #389e0d;
+    background: var(--color-success-bg);
+    color: var(--color-success);
 }
-
 .status-processing {
-    background: #e6f7ff;
-    border: 1rpx solid #91d5ff;
-    color: #1890ff;
+    background: var(--color-info-bg);
+    color: var(--color-info);
 }
-
 .status-pending {
-    background: #fff7e6;
-    border: 1rpx solid #ffd591;
-    color: #fa8c16;
+    background: var(--color-warning-bg);
+    color: #D97706;
 }
 
 .repair-info {
     font-size: 26rpx;
-    color: #666;
-    margin-bottom: 10rpx;
+    color: var(--color-text-secondary);
+    margin-bottom: 8rpx;
 }
 
 .repair-detail-row {
     font-size: 26rpx;
-    color: #666;
-    margin-bottom: 6rpx;
+    color: var(--color-text-secondary);
+    margin-bottom: 4rpx;
 }
 
-.repair-label {
-    color: #999;
-}
-
-.repair-value {
-    color: #333;
-}
+.repair-label { color: var(--color-text-tertiary); }
+.repair-value { color: var(--color-text); }
 
 .repair-time {
     font-size: 24rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     margin-top: 8rpx;
 }
 
 .repair-action {
-    margin-top: 16rpx;
+    margin-top: 14rpx;
     text-align: right;
 }
 
 .view-detail-btn {
     font-size: 26rpx;
-    color: #4F7CFF;
+    color: var(--color-primary);
     padding: 8rpx 24rpx;
-    border: 1rpx solid #4F7CFF;
-    border-radius: 8rpx;
+    border: 1rpx solid var(--color-primary-light);
+    border-radius: var(--radius-full);
+    font-weight: 500;
+    display: inline-block;
+    transition: all var(--transition-fast);
+}
+.view-detail-btn:active {
+    background: var(--color-primary-bg);
 }
 
-/* 空状态 */
+/* ---- 空状态 ---- */
 .empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 120rpx 0;
 }
-
 .empty-icon {
     font-size: 80rpx;
     margin-bottom: 24rpx;
+    opacity: 0.45;
 }
-
 .empty-text {
     font-size: 28rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
 }
 
-/* 加载中 */
+/* ---- 加载中 ---- */
 .loading {
     text-align: center;
     padding: 40rpx 0;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
 }
 
-/* 加载更多 */
+/* ---- 加载更多 ---- */
 .load-more {
     padding: 20rpx 0;
     text-align: center;
 }
-
 .load-more-btn {
     padding: 20rpx;
     font-size: 28rpx;
-    color: #4F7CFF;
-    cursor: pointer;
+    color: var(--color-primary);
+    font-weight: 500;
 }
-
-.load-more-btn:active {
-    opacity: 0.7;
-}
-
+.load-more-btn:active { opacity: 0.7; }
 .no-more {
     padding: 20rpx;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
 }
 
-/* 弹窗通用 */
+/* ---- 弹窗通用 ---- */
 .modal-mask {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4rpx);
     z-index: 999;
     display: flex;
     align-items: center;
     justify-content: center;
+    animation: fadeIn 0.2s ease both;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 .modal-content {
     width: 85%;
     max-height: 80vh;
-    background: white;
-    border-radius: 16rpx;
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    animation: scaleIn 0.25s ease both;
+    box-shadow: var(--shadow-xl);
+}
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
 }
 
 .modal-header {
@@ -830,19 +848,30 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 28rpx 32rpx;
-    border-bottom: 1rpx solid #eee;
+    border-bottom: 1rpx solid var(--color-divider);
 }
 
 .modal-title {
     font-size: 32rpx;
-    font-weight: 600;
-    color: #333;
+    font-weight: 700;
+    color: var(--color-text);
 }
 
 .modal-close {
     font-size: 36rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     padding: 8rpx;
+    width: 48rpx;
+    height: 48rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+}
+.modal-close:active {
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
 }
 
 .modal-body {
@@ -853,102 +882,152 @@ export default {
 
 .modal-footer {
     padding: 20rpx 32rpx 28rpx;
-    border-top: 1rpx solid #eee;
+    border-top: 1rpx solid var(--color-divider);
     display: flex;
     gap: 16rpx;
 }
 
-/* 详情弹窗 */
+/* ---- 详情弹窗 ---- */
 .detail-row {
     display: flex;
     padding: 16rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    border-bottom: 1rpx solid var(--color-divider);
 }
+.detail-row:last-child { border-bottom: none; }
 
 .detail-label {
     width: 160rpx;
     font-size: 26rpx;
-    color: #999;
+    color: var(--color-text-tertiary);
     flex-shrink: 0;
 }
 
 .detail-value {
     flex: 1;
     font-size: 26rpx;
-    color: #333;
+    color: var(--color-text);
     word-break: break-all;
 }
 
+/* 详情弹窗加载 */
+.loading-spinner-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60rpx 0;
+    gap: 16rpx;
+    font-size: 26rpx;
+    color: var(--color-text-tertiary);
+}
+.spinner-ring {
+    width: 44rpx;
+    height: 44rpx;
+    border: 3rpx solid var(--color-border);
+    border-top: 3rpx solid var(--color-primary);
+    border-radius: 50%;
+    animation: ring-spin 0.7s linear infinite;
+}
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+
+/* ---- 按钮 ---- */
 .edit-btn {
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
     color: white;
     text-align: center;
     height: 80rpx;
     line-height: 80rpx;
-    border-radius: 12rpx;
-    font-size: 30rpx;
-    font-weight: 500;
+    border-radius: var(--radius-sm);
+    font-size: 28rpx;
+    font-weight: 600;
     flex: 1;
+    box-shadow: 0 4rpx 14rpx rgba(108, 92, 231, 0.25);
+    transition: all var(--transition-fast);
 }
+.edit-btn:active { transform: scale(0.97); }
 
 .delete-btn {
-    background: white;
-    color: #ff4d4f;
+    background: var(--color-surface);
+    color: var(--color-danger);
     text-align: center;
     height: 80rpx;
     line-height: 80rpx;
-    border: 1rpx solid #ff4d4f;
-    border-radius: 12rpx;
-    font-size: 30rpx;
-    font-weight: 500;
+    border: 2rpx solid var(--color-danger-light);
+    border-radius: var(--radius-sm);
+    font-size: 28rpx;
+    font-weight: 600;
     margin-left: 16rpx;
     flex: 1;
+    transition: all var(--transition-fast);
+}
+.delete-btn:active {
+    background: var(--color-danger-bg);
+    transform: scale(0.97);
 }
 
-/* 编辑弹窗表单 */
+/* ---- 编辑弹窗表单 ---- */
 .form-item {
     margin-bottom: 24rpx;
 }
 
 .form-label {
     display: block;
-    font-size: 26rpx;
-    color: #666;
-    margin-bottom: 12rpx;
+    font-size: 24rpx;
+    color: var(--color-text-secondary);
+    margin-bottom: 10rpx;
+    font-weight: 500;
 }
 
 .form-input {
     width: 100%;
     height: 72rpx;
-    border: 1rpx solid #ddd;
-    border-radius: 10rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     padding: 0 20rpx;
     font-size: 28rpx;
-    color: #333;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
+    transition: all var(--transition-fast);
+}
+.form-input:focus {
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 4rpx rgba(108, 92, 231, 0.06);
 }
 
 .form-textarea {
     width: 100%;
     height: 150rpx;
-    border: 1rpx solid #ddd;
-    border-radius: 10rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     padding: 16rpx 20rpx;
     font-size: 28rpx;
-    color: #333;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
+    transition: all var(--transition-fast);
+    line-height: 1.6;
+}
+.form-textarea:focus {
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 4rpx rgba(108, 92, 231, 0.06);
 }
 
 .save-btn {
-    background: #4F7CFF;
+    background: var(--color-primary-gradient);
     color: white;
     text-align: center;
     height: 80rpx;
     line-height: 80rpx;
-    border-radius: 12rpx;
+    border-radius: var(--radius-sm);
     font-size: 30rpx;
-    font-weight: 500;
+    font-weight: 600;
+    flex: 1;
+    box-shadow: 0 4rpx 16rpx rgba(108, 92, 231, 0.25);
+    transition: all var(--transition-fast);
 }
+.save-btn:active { transform: scale(0.97); }
 
 /* 编辑弹窗 - 大尺寸 */
 .modal-large {
@@ -956,31 +1035,32 @@ export default {
     max-height: 85vh;
 }
 
-/* 表单选择器 */
+/* ---- 表单选择器 ---- */
 .form-select {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
     height: 72rpx;
-    border: 1rpx solid #ddd;
-    border-radius: 10rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     padding: 0 20rpx;
     font-size: 28rpx;
-    color: #333;
-    background: #fafafa;
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
     box-sizing: border-box;
+    transition: all var(--transition-fast);
 }
 
 .arrow {
-    font-size: 24rpx;
-    color: #999;
+    font-size: 20rpx;
+    color: var(--color-text-tertiary);
 }
 
-/* 单选按钮组 */
+/* ---- 单选按钮组 ---- */
 .radio-group {
     display: flex;
-    gap: 16rpx;
+    gap: 12rpx;
 }
 
 .radio-item {
@@ -988,23 +1068,23 @@ export default {
     height: 72rpx;
     line-height: 72rpx;
     text-align: center;
-    border: 1rpx solid #ddd;
-    border-radius: 10rpx;
+    border: 2rpx solid var(--color-border);
+    border-radius: var(--radius-sm);
     font-size: 28rpx;
-    color: #666;
-    background: #fafafa;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    transition: all var(--transition-fast);
+    font-weight: 500;
 }
-
 .radio-item.active {
-    border-color: #4F7CFF;
-    background: #f0f2ff;
-    color: #4F7CFF;
+    border-color: var(--color-primary);
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    font-weight: 600;
 }
 
-/* 图片上传区域 */
-.image-upload-area {
-    width: 100%;
-}
+/* ---- 图片上传 ---- */
+.image-upload-area { width: 100%; }
 
 .image-list {
     display: flex;
@@ -1017,12 +1097,11 @@ export default {
     width: 160rpx;
     height: 160rpx;
 }
-
 .preview-image {
     width: 160rpx;
     height: 160rpx;
-    border-radius: 12rpx;
-    border: 1rpx solid #ddd;
+    border-radius: var(--radius-sm);
+    border: 1rpx solid var(--color-border);
 }
 
 .image-delete {
@@ -1031,33 +1110,33 @@ export default {
     right: -12rpx;
     width: 40rpx;
     height: 40rpx;
-    background: #ff4d4f;
+    background: var(--color-danger);
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 24rpx;
+    box-shadow: 0 2rpx 8rpx rgba(239, 68, 68, 0.3);
 }
 
 .image-add {
     width: 160rpx;
     height: 160rpx;
-    border: 2rpx dashed #ddd;
-    border-radius: 12rpx;
+    border: 2rpx dashed var(--color-border);
+    border-radius: var(--radius-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 8rpx;
+    transition: all var(--transition-fast);
+}
+.image-add:active {
+    border-color: var(--color-primary-light);
+    background: var(--color-primary-bg);
 }
 
-.add-icon {
-    font-size: 40rpx;
-}
-
-.add-text {
-    font-size: 22rpx;
-    color: #999;
-}
+.add-icon { font-size: 38rpx; opacity: 0.6; }
+.add-text { font-size: 22rpx; color: var(--color-text-tertiary); }
 </style>

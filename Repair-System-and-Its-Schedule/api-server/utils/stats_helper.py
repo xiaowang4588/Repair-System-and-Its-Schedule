@@ -32,17 +32,29 @@ def count_dict(records: list, key: str, top: int = 0) -> dict:
 
 
 def trend_data(records: list, range_type: str) -> dict:
-    """生成趋势数据"""
+    """生成趋势数据（O(N+D) 单次遍历，替代 O(N×D) 逐天全量扫描）"""
     now = datetime.now()
     trend = {}
     if range_type == 'week':
+        # 初始化 7 天
         for i in range(7):
             d = (now - timedelta(days=6 - i)).strftime('%Y-%m-%d')
-            trend[d] = len([r for r in records if r.get('report_time', '').startswith(d)])
+            trend[d] = 0
+        # 单次遍历累加
+        for r in records:
+            rt = r.get('report_time', '')[:10]
+            if rt in trend:
+                trend[rt] += 1
     elif range_type == 'month':
+        # 初始化 30 天
         for i in range(30):
             d = (now - timedelta(days=29 - i)).strftime('%Y-%m-%d')
-            trend[d] = len([r for r in records if r.get('report_time', '').startswith(d)])
+            trend[d] = 0
+        # 单次遍历累加
+        for r in records:
+            rt = r.get('report_time', '')[:10]
+            if rt in trend:
+                trend[rt] += 1
     else:
         # 按教学周聚合
         import services.admin_config as admin_config

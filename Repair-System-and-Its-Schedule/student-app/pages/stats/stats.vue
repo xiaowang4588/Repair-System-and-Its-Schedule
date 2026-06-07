@@ -64,8 +64,9 @@
             </view>
 
             <!-- 加载中 -->
-            <view class="loading" v-if="!stats">
-                加载中...
+            <view class="loading-area" v-if="!stats">
+                <view class="spinner-ring"></view>
+                <text>加载中...</text>
             </view>
         </view>
     </view>
@@ -111,13 +112,14 @@ export default {
 <style scoped>
 .page {
     min-height: 100vh;
-    background: #F5F7FA;
+    background: var(--color-bg);
 }
 
 .container {
     padding: 24rpx;
 }
 
+/* ---- 统计卡片网格 ---- */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -126,48 +128,94 @@ export default {
 }
 
 .stat-card {
-    background: #4F7CFF;
-    border-radius: 16rpx;
-    padding: 32rpx;
+    border-radius: var(--radius-lg);
+    padding: 36rpx 28rpx;
     text-align: center;
     color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: transform var(--transition-fast);
+}
+.stat-card:active {
+    transform: scale(0.96);
+}
+/* 装饰圆 */
+.stat-card::after {
+    content: '';
+    position: absolute;
+    top: -24rpx;
+    right: -24rpx;
+    width: 100rpx;
+    height: 100rpx;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
 }
 
+.stat-card:nth-child(1) {
+    background: linear-gradient(135deg, #6C5CE7 0%, #8B7CF6 100%);
+}
 .stat-card:nth-child(2) {
-    background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+    background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
 }
-
 .stat-card:nth-child(3) {
-    background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
 }
-
 .stat-card:nth-child(4) {
-    background: linear-gradient(135deg, #eb2f96 0%, #c41d7f 100%);
+    background: linear-gradient(135deg, #EC4899 0%, #F472B6 100%);
 }
 
 .stat-value {
-    font-size: 48rpx;
+    font-size: 52rpx;
     font-weight: 700;
     display: block;
-    margin-bottom: 8rpx;
+    margin-bottom: 6rpx;
+    position: relative;
+    z-index: 1;
 }
 
 .stat-label {
     font-size: 24rpx;
-    opacity: 0.9;
+    opacity: 0.88;
+    position: relative;
+    z-index: 1;
+    font-weight: 500;
+}
+
+/* ---- 排行卡片 ---- */
+.card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 28rpx;
+    margin-bottom: 20rpx;
+    box-shadow: var(--shadow-sm);
+    border: 1rpx solid var(--color-border-light);
+}
+
+.card-title {
+    font-size: 30rpx;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 8rpx;
+    padding-bottom: 16rpx;
+    border-bottom: 1rpx solid var(--color-divider);
 }
 
 .rank-list {
-    margin-top: 16rpx;
+    margin-top: 8rpx;
 }
 
 .rank-item {
     display: flex;
     align-items: center;
-    padding: 20rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    padding: 18rpx 0;
+    border-bottom: 1rpx solid var(--color-divider);
+    transition: background var(--transition-fast);
+    border-radius: var(--radius-xs);
+    margin: 0 -8rpx;
+    padding-left: 8rpx;
+    padding-right: 8rpx;
 }
-
 .rank-item:last-child {
     border-bottom: none;
 }
@@ -176,80 +224,108 @@ export default {
     width: 48rpx;
     height: 48rpx;
     border-radius: 50%;
-    background: #F5F7FA;
+    background: var(--color-bg-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 24rpx;
     font-weight: 600;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-right: 16rpx;
+    flex-shrink: 0;
 }
 
 .rank-num.gold {
-    background: linear-gradient(135deg, #ffd700, #ffaa00);
+    background: linear-gradient(135deg, #FCD34D, #F59E0B);
     color: white;
+    box-shadow: 0 4rpx 12rpx rgba(245, 158, 11, 0.3);
 }
-
 .rank-num.silver {
-    background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+    background: linear-gradient(135deg, #CBD5E1, #94A3B8);
     color: white;
+    box-shadow: 0 4rpx 12rpx rgba(148, 163, 184, 0.3);
 }
-
 .rank-num.bronze {
-    background: linear-gradient(135deg, #cd7f32, #b06020);
+    background: linear-gradient(135deg, #FED7AA, #F97316);
     color: white;
+    box-shadow: 0 4rpx 12rpx rgba(249, 115, 22, 0.3);
 }
 
 .rank-name {
     flex: 1;
     font-size: 28rpx;
-    color: #333;
+    color: var(--color-text);
+    font-weight: 500;
 }
 
 .rank-value {
-    font-size: 28rpx;
-    color: #4F7CFF;
+    font-size: 26rpx;
+    color: var(--color-primary);
     font-weight: 600;
 }
 
+/* ---- 星期分布 ---- */
 .day-list {
-    margin-top: 16rpx;
+    margin-top: 8rpx;
 }
 
 .day-item {
     display: flex;
     align-items: center;
-    padding: 16rpx 0;
+    padding: 14rpx 0;
 }
 
 .day-name {
-    width: 80rpx;
+    width: 72rpx;
     font-size: 26rpx;
-    color: #666;
+    color: var(--color-text-secondary);
+    font-weight: 500;
 }
 
 .day-bar {
     flex: 1;
-    height: 32rpx;
-    background: #F5F7FA;
-    border-radius: 16rpx;
+    height: 28rpx;
+    background: var(--color-bg);
+    border-radius: 14rpx;
     margin: 0 16rpx;
     overflow: hidden;
 }
 
 .day-fill {
     height: 100%;
-    background: #4F7CFF;
-    border-radius: 16rpx;
-    transition: width 0.3s;
+    background: var(--color-accent-gradient);
+    border-radius: 14rpx;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 0;
 }
 
 .day-count {
-    width: 80rpx;
+    width: 64rpx;
     text-align: right;
     font-size: 26rpx;
-    color: #333;
+    color: var(--color-text);
     font-weight: 600;
+}
+
+/* ---- 加载动画 ---- */
+.loading-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60rpx 0;
+    gap: 12rpx;
+    font-size: 26rpx;
+    color: var(--color-text-tertiary);
+}
+.spinner-ring {
+    width: 48rpx;
+    height: 48rpx;
+    border: 3rpx solid var(--color-border);
+    border-top: 3rpx solid var(--color-primary);
+    border-radius: 50%;
+    animation: stats-spin 0.7s linear infinite;
+}
+@keyframes stats-spin {
+    to { transform: rotate(360deg); }
 }
 </style>
