@@ -11,26 +11,38 @@
 
         <!-- 统计卡片 -->
         <view class="stats-card">
-            <view v-if="loadingInfo" class="stat-block" v-for="i in 3" :key="i">
-                <view class="stat-skeleton-bar stat-skeleton-value"></view>
-                <view class="stat-skeleton-bar stat-skeleton-label"></view>
+            <!-- 加载状态：骨架屏 -->
+            <block v-if="loadingInfo">
+                <view class="stat-block" v-for="i in 3" :key="'skeleton-'+i">
+                    <view class="stat-skeleton-bar stat-skeleton-value"></view>
+                    <view class="stat-skeleton-bar stat-skeleton-label"></view>
+                </view>
+            </block>
+
+            <!-- 错误状态：可点击重试 -->
+            <view v-else-if="infoError" class="stats-error" @click="loadStudentInfo">
+                <text class="error-icon">&#x26A0;</text>
+                <text class="error-text">加载失败</text>
+                <text class="error-retry">点击重试</text>
             </view>
-            <template v-else>
-                <view class="stat-block">
+
+            <!-- 正常状态：使用view替代template避免uni-app渲染异常 -->
+            <view v-else class="stats-content">
+                <view class="stat-block" @click="goToRepairList('all', 'all')">
                     <text class="stat-value blue">{{ teamTotal }}</text>
                     <text class="stat-label">总报修量</text>
                 </view>
                 <view class="stat-sep"></view>
-                <view class="stat-block" @click="goToRepairList">
+                <view class="stat-block" @click="goToRepairList('all', 'my')">
                     <text class="stat-value">{{ stats.total }}</text>
                     <text class="stat-label">我的报修</text>
                 </view>
                 <view class="stat-sep"></view>
-                <view class="stat-block" @click="goToRepairList">
+                <view class="stat-block" @click="goToRepairList('未处理', 'my')">
                     <text class="stat-value orange">{{ stats.pending }}</text>
                     <text class="stat-label">待处理</text>
                 </view>
-            </template>
+            </view>
         </view>
 
         <!-- 防坑指南 -->
@@ -109,8 +121,10 @@ export default {
             stats: { total: 0, pending: 0 },
             guideStats: { postCount: 0, favoriteCount: 0 },
             showPwdForm: false,
-            loadingInfo: false,
+            loadingInfo: true,
+            infoError: false,
             loadingGuide: false,
+            isFirstLoad: true,  // 标记是否为首次加载，防止onShow重复触发
             pwdForm: {
                 old_password: '',
                 new_password: '',
@@ -124,31 +138,47 @@ export default {
             uni.reLaunch({ url: '/pages/login/login' })
             return
         }
+        this.isFirstLoad = true
         this.loadStudentInfo()
         this.loadGuideStats()
     },
     onShow() {
         const token = uni.getStorageSync('student_token')
-        if (token) {
+        if (!token) {
+            uni.reLaunch({ url: '/pages/login/login' })
+            return
+        }
+        // 首次加载由 onLoad 处理，onShow 仅在从其他页面返回时刷新
+        // 增加双重判断：非首次加载 + 非加载中，才执行刷新
+        if (!this.isFirstLoad && !this.loadingInfo) {
             this.loadStudentInfo()
             this.loadGuideStats()
+        }
+        // 首次加载完成后，将标记设为false
+        if (this.isFirstLoad && !this.loadingInfo) {
+            this.isFirstLoad = false
         }
     },
     methods: {
         async loadStudentInfo() {
             this.loadingInfo = true
+            this.infoError = false
             try {
-                const res = await request('/api/student/info')
-                if (res && res.status === 'ok' && res.data) {
-                    this.studentInfo = res.data
-                    if (res.data.stats) this.stats = res.data.stats
+                // 两个接口互不依赖，并行请求
+                const [infoRes, statsRes] = await Promise.all([
+                    request('/api/student/info'),
+                    request('/api/repair/stats')
+                ])
+                if (infoRes && infoRes.status === 'ok' && infoRes.data) {
+                    this.studentInfo = infoRes.data
+                    if (infoRes.data.stats) this.stats = infoRes.data.stats
                 }
-                const statsRes = await request('/api/repair/stats')
                 if (statsRes && statsRes.status === 'ok' && statsRes.data) {
                     this.teamTotal = statsRes.data.total_count || 0
                 }
             } catch (e) {
                 console.warn('获取学生信息失败:', e)
+                this.infoError = true
             } finally {
                 this.loadingInfo = false
             }
@@ -169,8 +199,8 @@ export default {
                 this.loadingGuide = false
             }
         },
-        goToRepairList() {
-            uni.navigateTo({ url: '/pages/repair/list' })
+        goToRepairList(filter, listType) {
+            uni.navigateTo({ url: `/pages/repair/list?filter=${filter}&listType=${listType}` })
         },
         navigateTo(url) {
             uni.navigateTo({ url })
@@ -316,6 +346,13 @@ export default {
     animation: fadeInUp 0.4s ease 0.1s both;
 }
 
+/* 统计内容容器：确保flex布局正确 */
+.stats-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
 .stat-block {
     flex: 1;
     display: flex;
@@ -364,6 +401,34 @@ export default {
     width: 1rpx;
     height: 56rpx;
     background: var(--color-divider);
+}
+
+/* 统计卡片错误状态 */
+.stats-error {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20rpx 0;
+    transition: opacity var(--transition-fast);
+}
+.stats-error:active {
+    opacity: 0.7;
+}
+.error-icon {
+    font-size: 40rpx;
+    margin-bottom: 4rpx;
+}
+.error-text {
+    font-size: 22rpx;
+    color: var(--color-text-tertiary);
+}
+.error-retry {
+    font-size: 20rpx;
+    color: var(--color-primary);
+    margin-top: 6rpx;
+    font-weight: 500;
 }
 
 /* ---- 菜单卡片 ---- */

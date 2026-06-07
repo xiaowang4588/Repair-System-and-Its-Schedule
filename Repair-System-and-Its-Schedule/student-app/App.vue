@@ -1,13 +1,46 @@
 <script>
+import config, { initConfig } from './config/index.js'
+
 export default {
-    onLaunch() {
+    async onLaunch() {
         console.log('App Launch')
+        this.autoLogin()
     },
     onShow() {
         console.log('App Show')
     },
     onHide() {
         console.log('App Hide')
+    },
+    methods: {
+        async autoLogin() {
+            const token = uni.getStorageSync('student_token')
+            if (!token) return
+
+            try {
+                await initConfig()
+                const res = await new Promise((resolve, reject) => {
+                    uni.request({
+                        url: config.API_BASE + '/api/student/info',
+                        method: 'GET',
+                        header: { 'Authorization': 'Bearer ' + token },
+                        success: (res) => resolve(res.data),
+                        fail: reject,
+                    })
+                })
+                if (res && res.status === 'ok') {
+                    // Token 有效，直接进入首页
+                    uni.reLaunch({ url: '/pages/index/index' })
+                } else {
+                    // Token 无效，清除并留在登录页
+                    uni.removeStorageSync('student_token')
+                    uni.removeStorageSync('student_id')
+                    uni.removeStorageSync('student_name')
+                }
+            } catch (e) {
+                // 网络错误等，不清除token（可能是暂时的）
+            }
+        }
     }
 }
 </script>

@@ -108,7 +108,7 @@ def _check_rate_limit(key, max_requests):
 
 @app.before_request
 def global_rate_limit():
-    """全局请求频率限制"""
+    """全局请求频率限制 + 安全监控"""
     # 静态文件不限流
     if request.path.startswith('/uploads/'):
         return None
@@ -125,11 +125,27 @@ def global_rate_limit():
             return jsonify({'status': 'error', 'message': '请求过于频繁，请稍后再试'}), 429
 
     # 拦截明显的扫描/攻击请求
-    ua = request.headers.get('User-Agent', '').lower()
+    ua = request.headers.get('User-Agent', '')
+    ua_lower = ua.lower()
     blocked_agents = ['sqlmap', 'nikto', 'nmap', 'masscan', 'dirbuster', 'gobuster']
-    if any(agent in ua for agent in blocked_agents):
+    if any(agent in ua_lower for agent in blocked_agents):
         logger.warning(f"[BLOCKED] Suspicious User-Agent: {ua} from {client_ip}")
         return jsonify({'status': 'error', 'message': 'Forbidden'}), 403
+
+    # 安全监控：异常User-Agent检测
+    from utils.security_monitor import security_monitor
+    ua_check = security_monitor.check_user_agent(ua)
+    if ua_check['abnormal'] and ua_lower not in blocked_agents:
+        security_monitor.log_abnormal_ua(client_ip, ua, request.path)
+
+    # 安全监控：非正常工作时间管理员API访问检测
+    if request.path.startswith('/admin/') and request.method in ('POST', 'PUT', 'DELETE'):
+        auth = request.headers.get('Authorization', '')
+        if auth.startswith('Bearer '):
+            if security_monitor.check_off_hours_access('admin'):
+                security_monitor.log_off_hours_access(
+                    client_ip, 'admin', '', request.path
+                )
 
     return None
 
@@ -168,7 +184,7 @@ _excel_path = admin_config.get_current_excel_path()
 _excel_exists = os.path.exists(_excel_path) if _excel_path else False
 logger.info("=" * 50)
 logger.info("[STARTUP] .env file: %s", 'OK' if _env_exists else 'MISSING (create from .env.example)')
-logger.info("[STARTUP] SECRET_KEY: %s", ('SET (' + _env_secret[:8] + '...)' if _env_secret else 'NOT SET - will generate random!'))
+logger.info("[STARTUP] SECRET_KEY: %s", 'SET' if _env_secret else 'NOT SET - will generate random!')
 logger.info("[STARTUP] config.json: %s", 'OK' if _cfg_exists else 'MISSING (will create default)')
 logger.info("[STARTUP] Excel file: %s", _excel_path if _excel_path else 'NOT CONFIGURED')
 logger.info("[STARTUP] Excel exists: %s", _excel_exists)

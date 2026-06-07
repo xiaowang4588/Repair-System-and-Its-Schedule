@@ -475,13 +475,26 @@ def student_update_repair(repair_id: int, student_id: str, data: dict, student_n
     except Repair.DoesNotExist:
         return {'error': '记录不存在'}
 
-    # 验证是否是该学生的记录（student_id 必须匹配）
-    if repair.student_id != student_id:
+    # 验证是否是该学生的记录（多种匹配方式，兼容学生端提交和管理员批量导入）
+    # 方式1: student_id 匹配 — 通过学生端页面提交的记录
+    # 方式2: handler_name 匹配 — 管理员批量导入，处理人字段=学生姓名
+    # 方式3: student_name 匹配 — 批量导入或手动关联
+    sid_clean = (student_id or '').strip()
+    sname_clean = (student_name or '').strip()
+    is_owner = False
+
+    if sid_clean and (repair.student_id or '').strip() == sid_clean:
+        is_owner = True
+    elif sname_clean:
+        if (repair.handler_name or '').strip() == sname_clean:
+            is_owner = True
+        elif (repair.student_name or '').strip() == sname_clean:
+            is_owner = True
+
+    if not is_owner:
         return {'error': '无权修改此记录'}
 
-    # 只允许编辑"未处理"状态的记录
-    if repair.status != '未处理':
-        return {'error': '只能修改状态为"未处理"的记录'}
+    # 学生可编辑任意状态的属于自己的记录（兼容自行提交和管理员批量导入）
 
     # 记录修改日志
     log_entry = {
@@ -536,14 +549,23 @@ def student_delete_repair(repair_id: int, student_id: str, student_name: str = '
     except Repair.DoesNotExist:
         return {'error': '记录不存在'}
 
-    # 验证是否是该学生的记录（student_id 匹配 或 handler_name 匹配）
-    is_owner = (repair.student_id == student_id) or (student_name and repair.handler_name == student_name)
+    # 验证是否是该学生的记录（多种匹配方式，与 student_update_repair 保持一致）
+    sid_clean = (student_id or '').strip()
+    sname_clean = (student_name or '').strip()
+    is_owner = False
+
+    if sid_clean and (repair.student_id or '').strip() == sid_clean:
+        is_owner = True
+    elif sname_clean:
+        if (repair.handler_name or '').strip() == sname_clean:
+            is_owner = True
+        elif (repair.student_name or '').strip() == sname_clean:
+            is_owner = True
+
     if not is_owner:
         return {'error': '无权删除此记录'}
 
-    # 只允许删除"未处理"状态的记录
-    if repair.status != '未处理':
-        return {'error': '只能删除状态为"未处理"的记录'}
+    # 学生可删除任意状态的属于自己的记录（兼容自行提交和管理员批量导入）
 
     Repair.delete().where(Repair.id == repair_id).execute()
     logger.info(f"学生删除报修记录: ID={repair_id}, 学生={student_id}")
@@ -574,16 +596,20 @@ def get_student_repairs(student_id: str = '', student_name: str = '',
     """
     query = Repair.select()
 
-    # 按 student_id 或 handler_name 筛选
+    # 按 student_id 或姓名（handler_name / student_name）筛选
     if student_id and student_name:
         query = query.where(
             (Repair.student_id == student_id) |
-            (Repair.handler_name == student_name)
+            (Repair.handler_name == student_name) |
+            (Repair.student_name == student_name)
         )
     elif student_id:
         query = query.where(Repair.student_id == student_id)
     elif student_name:
-        query = query.where(Repair.handler_name == student_name)
+        query = query.where(
+            (Repair.handler_name == student_name) |
+            (Repair.student_name == student_name)
+        )
 
     # 按状态筛选
     if status and status != 'all':

@@ -199,8 +199,12 @@ def api_report_preview():
 @report_bp.route('/api/report/export/excel', methods=['GET'])
 @report_auth_required
 def api_report_export_excel():
-    """导出 Excel 报告"""
+    """导出 Excel 报告（集成批量导出检测）"""
     try:
+        from utils.security_monitor import security_monitor
+        ip = request.remote_addr or 'unknown'
+        security_monitor.record_export(ip, record_count=1, user_type='admin')
+
         from services.report.analyzer import analyzer
         from services.report.advisor import advisor
         from services.report.renderer import renderer
@@ -251,8 +255,12 @@ def api_report_export_excel():
 @report_bp.route('/api/report/export/word', methods=['GET'])
 @report_auth_required
 def api_report_export_word():
-    """导出 Word 报告"""
+    """导出 Word 报告（集成批量导出检测）"""
     try:
+        from utils.security_monitor import security_monitor
+        ip = request.remote_addr or 'unknown'
+        security_monitor.record_export(ip, record_count=1, user_type='admin')
+
         from services.report.analyzer import analyzer
         from services.report.advisor import advisor
         from services.report.renderer import renderer

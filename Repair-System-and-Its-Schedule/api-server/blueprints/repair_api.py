@@ -223,6 +223,124 @@ def api_repair_create():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@repair_bp.route('/api/repair/bot-create', methods=['POST'])
+def api_repair_bot_create():
+    """
+    QQ机器人专用报修接口（无需登录，使用API Key认证）
+
+    供外部QQ机器人调用，将群内报修信息直接写入Repair表。
+    认证方式：请求头 X-Bot-API-Key 或 参数 api_key
+
+    支持完整13个字段（与Excel表格列一一对应）：
+      1. classroom        - 故障教室（必填）
+      2. report_time      - 报修时间
+      3. week_number      - 周次
+      4. fault_type       - 报修类型（与fault_cause二选一必填）
+      5. reporter_name    - 报修人
+      6. reporter_college - 报修人学院
+      7. is_external_teacher - 是否外聘教师
+      8. report_method    - 报修方式
+      9. handler_name     - 处理人
+     10. is_device_replaced  - 是否更换设备
+     11. status           - 处理情况
+     12. fault_cause      - 故障原因（与fault_type二选一必填）
+     13. solution         - 处理方式
+
+    请求示例：
+    POST /api/repair/bot-create
+    Headers: { "X-Bot-API-Key": "your-secret-key" }
+    Body: {
+        "classroom": "行者楼408",
+        "report_time": "2026-06-07",
+        "week_number": 15,
+        "fault_type": "中控",
+        "reporter_name": "张三",
+        "reporter_college": "理学院",
+        "is_external_teacher": false,
+        "report_method": "多媒体报修群",
+        "handler_name": "",
+        "is_device_replaced": false,
+        "status": "未处理",
+        "fault_cause": "中控死机无法开机",
+        "solution": ""
+    }
+    """
+    import config as _cfg
+
+    # === API Key 认证 ===
+    api_key = request.headers.get('X-Bot-API-Key', '') or (request.get_json() or {}).get('api_key', '') or request.form.get('api_key', '')
+    expected_key = _cfg.QQ_BOT_API_KEY
+
+    if not api_key or api_key != expected_key:
+        logger.warning(f"[BOT-API] API Key 认证失败，来源IP: {request.remote_addr}")
+        return jsonify({
+            'status': 'error',
+            'message': 'API Key 无效或未提供'
+        }), 401
+
+    try:
+        data = request.get_json() or {}
+
+        # --- 必填校验 ---
+        if not data.get('classroom'):
+            return jsonify({'status': 'error', 'message': '缺少必填字段: classroom（故障教室）'}), 400
+
+        if not data.get('fault_type') and not data.get('fault_cause'):
+            return jsonify({'status': 'error', 'message': '至少需要提供 fault_type（报修类型）或 fault_cause（故障原因）之一'}), 400
+
+        # --- 构造完整报修数据（13个字段全覆盖） ---
+        repair_data = {
+            # 1. 故障教室（必填）
+            'classroom': str(data.get('classroom', '')).strip(),
+            # 2. 报修时间
+            'report_time': str(data.get('report_time', '')).strip(),
+            # 3. 周次
+            'week_number': int(data.get('week_number', 0) or 0),
+            # 4. 报修类型
+            'fault_type': str(data.get('fault_type', '')).strip() or '其他',
+            # 5. 报修人
+            'reporter_name': str(data.get('reporter_name', '')).strip() or '未知',
+            # 6. 报修人学院
+            'reporter_college': str(data.get('reporter_college', '')).strip(),
+            # 7. 是否外聘教师
+            'is_external_teacher': bool(data.get('is_external_teacher', False)),
+            # 8. 报修方式（默认"多媒体报修群"标识机器人来源）
+            'report_method': str(data.get('report_method', '')).strip() or '多媒体报修群',
+            # 9. 处理人
+            'handler_name': str(data.get('handler_name', '')).strip(),
+            # 10. 是否更换设备
+            'is_device_replaced': bool(data.get('is_device_replaced', False)),
+            # 11. 处理情况/状态
+            'status': data.get('status', '未处理'),
+            # 12. 故障原因
+            'fault_cause': str(data.get('fault_cause', '')).strip(),
+            # 13. 处理方式/解决方案
+            'solution': str(data.get('solution', '')).strip(),
+            # 额外：保存原始消息作为备注（便于追溯）
+            'notes': str(data.get('raw_message', '')).strip(),
+        }
+
+        result = repair_manager.create_repair(repair_data)
+        if 'error' in result:
+            return jsonify({'status': 'error', 'message': result['error']}), 400
+
+        logger.info(
+            f"[BOT-API] 机器人创建报修记录成功: ID={result.get('id')}, "
+            f"教室={repair_data['classroom']}, 类型={repair_data['fault_type']}, "
+            f"报修人={repair_data['reporter_name']}"
+        )
+
+        return jsonify({
+            'status': 'ok',
+            'data': result,
+            'message': '报修记录已创建'
+        })
+
+    except Exception as e:
+        logger.error(f"[BOT-API] 创建报修记录失败: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @repair_bp.route('/api/repair/update', methods=['POST'])
 @_admin_required
 def api_repair_update():
@@ -435,8 +553,12 @@ def api_repair_drill_classroom():
 @repair_bp.route('/api/repair/export', methods=['GET'])
 @_admin_required
 def api_repair_export():
-    """导出报修记录为Excel（需要管理员登录）"""
+    """导出报修记录为Excel（需要管理员登录，集成批量导出检测）"""
     try:
+        from utils.security_monitor import security_monitor
+        ip = request.remote_addr or 'unknown'
+        security_monitor.record_export(ip, record_count=1, user_type='admin')
+
         params = {
             'range_type': request.args.get('range', ''),
             'semester': request.args.get('semester', ''),
@@ -522,6 +644,14 @@ def api_repair_upload_image():
     ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
     MAX_SIZE = 10 * 1024 * 1024  # 10MB
 
+    # 已知图片格式的魔数签名（前12字节足够区分常见格式）
+    MAGIC_SIGNATURES = {
+        b'\xff\xd8\xff': 'jpeg',
+        b'\x89PNG\r\n\x1a\n': 'png',
+        b'GIF8': 'gif',
+        b'RIFF': 'webp',   # RIFF....WEBP，需额外校验
+    }
+
     try:
         if 'file' not in request.files:
             return jsonify({'status': 'error', 'message': '没有选择文件'}), 400
@@ -534,7 +664,7 @@ def api_repair_upload_image():
         import uuid
         ext = os.path.splitext(file.filename)[1].lower()
         if ext not in ALLOWED_EXTENSIONS:
-            return jsonify({'status': 'error', 'message': f'不支持的文件格式{ext}，仅支持 jpg/png/gif/webp'}), 400
+            return jsonify({'status': 'error', 'message': f'不支持的文件格式 {ext}，仅支持 jpg/png/gif/webp'}), 400
 
         # 校验文件大小
         file.seek(0, 2)
@@ -542,6 +672,28 @@ def api_repair_upload_image():
         file.seek(0)
         if size > MAX_SIZE:
             return jsonify({'status': 'error', 'message': f'文件大小 {size/1024/1024:.1f}MB 超过限制 10MB'}), 400
+
+        # 魔数校验：读取文件头确认是真实的图片格式（防止扩展名伪装 + 兼容无扩展名的客户端）
+        header_bytes = file.read(12)
+        file.seek(0)
+        matched_type = None
+        for magic, img_type in MAGIC_SIGNATURES.items():
+            if header_bytes.startswith(magic):
+                if img_type == 'webp':
+                    # WebP: RIFF....WEBP（偏移8字节处检查 WEBP）
+                    if len(header_bytes) >= 12 and header_bytes[8:12] == b'WEBP':
+                        matched_type = 'webp'
+                else:
+                    matched_type = img_type
+                break
+
+        if not matched_type:
+            # 显示实际文件头的 hex，方便排查（如 iOS 的 HEIC 格式等）
+            hex_preview = header_bytes[:8].hex()
+            return jsonify({
+                'status': 'error',
+                'message': f'无法识别的图片格式（文件头: {hex_preview}），仅支持 jpg/png/gif/webp，请确认图片格式'
+            }), 400
 
         filename = f"{uuid.uuid4().hex}{ext}"
 

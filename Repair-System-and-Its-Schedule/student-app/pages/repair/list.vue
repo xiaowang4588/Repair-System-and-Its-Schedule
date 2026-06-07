@@ -141,8 +141,8 @@
                         <text class="detail-value">{{ detailData.handle_time }}</text>
                     </view>
                 </view>
-                <!-- 操作按钮：自己的记录且状态为"未处理"时显示 -->
-                <view class="modal-footer" v-if="detailData && detailData.status === '未处理' && isMyRecord(detailData)">
+                <!-- 操作按钮：只要是自己的记录就显示（兼容自行提交和管理员批量导入） -->
+                <view class="modal-footer" v-if="detailData && isMyRecord(detailData)">
                     <view class="edit-btn" @click="openEdit">编辑</view>
                     <view class="delete-btn" @click="deleteRecord(detailData.id)">删除</view>
                 </view>
@@ -255,7 +255,7 @@
 
 <script>
 import config, { getImageUrl as resolveImageUrl } from '../../config/index.js'
-import { request, post } from '../../api/index.js'
+import { request, post, uploadImage } from '../../api/index.js'
 
 export default {
     data() {
@@ -298,7 +298,7 @@ export default {
             }
         }
     },
-    onLoad() {
+    onLoad(options) {
         // 检查登录状态
         const token = uni.getStorageSync('student_token')
         if (!token) {
@@ -307,6 +307,9 @@ export default {
         }
         this.studentId = uni.getStorageSync('student_id') || ''
         this.studentName = uni.getStorageSync('student_name') || ''
+        // 支持从「我的」页面传入筛选参数
+        if (options.filter) this.currentFilter = options.filter
+        if (options.listType) this.listType = options.listType
         this.loadRecords()
     },
     onShow() {
@@ -438,9 +441,25 @@ export default {
         // 判断是否是自己的记录
         isMyRecord(record) {
             if (!record) return false
-            // student_id 匹配 或 handler_name 匹配
-            return (record.student_id && record.student_id === this.studentId) ||
-                   (record.handler_name && record.handler_name === this.studentName)
+            const myId = String(this.studentId || '').trim()
+            const myName = String(this.studentName || '').trim()
+            if (!myId && !myName) return false
+
+            // 方式1: student_id 匹配（通过学生端页面提交的记录）
+            const rid = String(record.student_id || '').trim()
+            if (myId && rid && rid === myId) return true
+
+            if (myName) {
+                // 方式2: handler_name 匹配（管理员批量导入，处理人=学生姓名）
+                const rhn = String(record.handler_name || '').trim()
+                if (rhn && rhn === myName) return true
+
+                // 方式3: student_name 匹配（管理员批量导入或手动关联）
+                const rsn = String(record.student_name || '').trim()
+                if (rsn && rsn === myName) return true
+            }
+
+            return false
         },
 
         // 删除记录
@@ -515,48 +534,44 @@ export default {
 
         // 编辑弹窗 - 选择图片
         chooseEditImage() {
+            const maxCount = 3 - this.editForm.note_images.length
+            if (maxCount <= 0) {
+                uni.showToast({ title: '最多上传3张图片', icon: 'none' })
+                return
+            }
             uni.chooseImage({
-                count: 3 - this.editForm.note_images.length,
+                count: maxCount,
                 sizeType: ['compressed'],
                 sourceType: ['album', 'camera'],
                 success: (res) => {
                     res.tempFilePaths.forEach(path => {
                         this.uploadEditImage(path)
                     })
+                },
+                fail: (err) => {
+                    console.error('选择图片失败:', err)
+                    uni.showToast({ title: '选择图片失败', icon: 'none' })
                 }
             })
         },
 
         // 编辑弹窗 - 上传图片
-        uploadEditImage(filePath) {
-            const token = uni.getStorageSync('student_token')
-            const header = {}
-            if (token) header['Authorization'] = `Bearer ${token}`
-            uni.uploadFile({
-                url: config.API_BASE + '/api/repair/upload-image',
-                filePath: filePath,
-                name: 'file',
-                header: header,
-                success: (res) => {
-                    try {
-                        if (res.statusCode === 200) {
-                            const data = JSON.parse(res.data)
-                            if (data.status === 'ok') {
-                                this.editForm.note_images.push(data.data.url)
-                            } else {
-                                uni.showToast({ title: data.message || '上传失败', icon: 'none' })
-                            }
-                        } else {
-                            uni.showToast({ title: '上传失败(' + res.statusCode + ')', icon: 'none' })
-                        }
-                    } catch (e) {
-                        uni.showToast({ title: '上传响应解析失败', icon: 'none' })
-                    }
-                },
-                fail: () => {
-                    uni.showToast({ title: '图片上传失败', icon: 'none' })
+        async uploadEditImage(filePath) {
+            uni.showLoading({ title: '上传中...' })
+            try {
+                const data = await uploadImage(filePath)
+                if (data && data.status === 'ok') {
+                    this.editForm.note_images.push(data.data.url)
+                    uni.showToast({ title: '上传成功', icon: 'success', duration: 1000 })
+                } else {
+                    uni.showToast({ title: (data && data.message) || '上传失败', icon: 'none' })
                 }
-            })
+            } catch (e) {
+                console.error('图片上传异常:', e)
+                uni.showToast({ title: '上传失败，请检查网络', icon: 'none' })
+            } finally {
+                uni.hideLoading()
+            }
         },
 
         // 编辑弹窗 - 删除图片

@@ -32,11 +32,42 @@ if not _default_pwd:
 DEFAULT_ADMIN_PASSWORD = _default_pwd
 
 
+# ============ 密码哈希工具函数（必须在 DEFAULT_CONFIG 和 sync_admin_password 之前定义） ============
+
+def _hash_admin_password(password: str, salt: str = '') -> str:
+    """
+    管理员密码哈希（带盐，与学生密码安全级别一致）
+    格式: salt$hash_value
+    """
+    if not salt:
+        salt = secrets.token_hex(16)
+    hash_value = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+    return f"{salt}${hash_value}"
+
+
+def _verify_admin_password(password: str, stored_hash: str) -> bool:
+    """
+    验证管理员密码（兼容新旧两种格式）
+    新格式: salt$hash_value
+    旧格式: 纯SHA-256哈希（64位十六进制，无$分隔符）
+    """
+    if '$' in stored_hash:
+        # 新格式：带盐SHA-256
+        return _hash_admin_password(password, stored_hash.split('$', 1)[0]) == stored_hash
+    # 兼容旧格式：无盐SHA-256
+    return hashlib.sha256(password.encode()).hexdigest() == stored_hash
+
+
+def _needs_rehash(stored_hash: str) -> bool:
+    """检查密码哈希是否需要升级（旧格式→新格式）"""
+    return '$' not in stored_hash
+
+
 def sync_admin_password():
     """
     启动时检查 config.json 中的管理员密码是否与 .env 中的 ADMIN_PASSWORD 一致。
     如果 .env 设了密码但 config.json 中的哈希不匹配，自动更新 config.json。
-    解决：先启动（随机密码）→ 后加 .env → 密码不匹配的问题。
+    使用带盐哈希格式，兼容旧的无盐格式自动升级。
     """
     env_pwd = os.environ.get('ADMIN_PASSWORD', '').strip()
     if not env_pwd:
@@ -44,18 +75,24 @@ def sync_admin_password():
 
     config = load_config()
     stored_hash = config.get("admin", {}).get("password_hash", "")
-    env_hash = hashlib.sha256(env_pwd.encode()).hexdigest()
 
-    if stored_hash != env_hash:
-        config["admin"]["password_hash"] = env_hash
+    # 使用新的验证函数（兼容新旧格式）
+    if not _verify_admin_password(env_pwd, stored_hash):
+        # 密码不匹配，用.env的密码更新（带盐哈希）
+        config["admin"]["password_hash"] = _hash_admin_password(env_pwd)
         save_config(config)
-        print(f"[INFO] Admin password synced from .env file.")
+        print(f"[INFO] Admin password synced from .env file (upgraded to salted hash).")
+    elif _needs_rehash(stored_hash):
+        # 密码匹配但哈希格式旧，升级为新格式
+        config["admin"]["password_hash"] = _hash_admin_password(env_pwd)
+        save_config(config)
+        print(f"[INFO] Admin password hash upgraded to salted format.")
 
 # 默认配置
 DEFAULT_CONFIG = {
     "admin": {
         "username": "wxzx",
-        "password_hash": hashlib.sha256(DEFAULT_ADMIN_PASSWORD.encode()).hexdigest()
+        "password_hash": _hash_admin_password(DEFAULT_ADMIN_PASSWORD)
     },
     "datasource": {
         "type": "excel",
@@ -148,13 +185,23 @@ def _write_config_file(config: dict):
 
 
 def verify_admin(username: str, password: str) -> bool:
-    """验证管理员账号密码"""
+    """验证管理员账号密码（自动迁移旧格式哈希）"""
     config = load_config()
     admin = config.get("admin", {})
     if username != admin.get("username", ""):
         return False
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    return password_hash == admin.get("password_hash", "")
+    stored_hash = admin.get("password_hash", "")
+
+    if not _verify_admin_password(password, stored_hash):
+        return False
+
+    # 自动迁移：旧格式哈希验证成功后，升级为新格式
+    if _needs_rehash(stored_hash):
+        config["admin"]["password_hash"] = _hash_admin_password(password)
+        save_config(config)
+        logger.info("管理员密码哈希已自动升级为带盐格式")
+
+    return True
 
 
 def get_datasource_config() -> dict:
@@ -382,17 +429,17 @@ def change_password(old_password: str, new_password: str) -> dict:
     config = load_config()
     admin = config.get("admin", {})
 
-    # 验证旧密码
-    old_hash = hashlib.sha256(old_password.encode()).hexdigest()
-    if old_hash != admin.get("password_hash", ""):
+    # 验证旧密码（兼容新旧格式）
+    stored_hash = admin.get("password_hash", "")
+    if not _verify_admin_password(old_password, stored_hash):
         return {'error': '旧密码错误'}
 
     # 验证新密码长度
     if len(new_password) < 6:
         return {'error': '新密码长度不能少于6位'}
 
-    # 更新密码
-    config["admin"]["password_hash"] = hashlib.sha256(new_password.encode()).hexdigest()
+    # 更新密码（使用带盐哈希）
+    config["admin"]["password_hash"] = _hash_admin_password(new_password)
     save_config(config)
 
     return {'success': True}

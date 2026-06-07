@@ -88,3 +88,9 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "")
 # 设置证书路径后自动启用 HTTPS（开发环境留空则使用 HTTP）
 SSL_CERTFILE = os.environ.get("SSL_CERTFILE", "")  # 如: /path/to/cert.pem
 SSL_KEYFILE = os.environ.get("SSL_KEYFILE", "")    # 如: /path/to/key.pem
+
+# ============================================================
+# QQ机器人对接配置
+# ============================================================
+# 机器人调用报修接口时使用的密钥（提供给机器人开发者）
+QQ_BOT_API_KEY = os.environ.get("QQ_BOT_API_KEY", "repair-bot-2026-secret-key")

@@ -412,44 +412,41 @@ export default {
 
         // 选择图片
         chooseImage() {
+            const maxCount = 3 - this.form.note_images.length
+            if (maxCount <= 0) {
+                uni.showToast({ title: '最多上传3张图片', icon: 'none' })
+                return
+            }
             uni.chooseImage({
-                count: 3 - this.form.note_images.length,
+                count: maxCount,
                 sizeType: ['compressed'],
                 sourceType: ['album', 'camera'],
                 success: async (res) => {
                     for (const tempPath of res.tempFilePaths) {
-                        // 校验文件大小（最大10MB）
+                        uni.showLoading({ title: '上传中...' })
                         try {
-                            const fileInfo = await new Promise((resolve, reject) => {
-                                uni.getFileInfo({
-                                    filePath: tempPath,
-                                    success: resolve,
-                                    fail: reject
-                                })
-                            })
-
-                            if (fileInfo.size > 10 * 1024 * 1024) {
-                                uni.showToast({ title: '图片大小不能超过10MB', icon: 'none' })
-                                continue
-                            }
-
-                            // 校验文件格式
-                            const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-                            const ext = tempPath.substring(tempPath.lastIndexOf('.')).toLowerCase()
-                            if (!allowedExtensions.includes(ext)) {
-                                uni.showToast({ title: '只支持jpg/png/gif/webp格式', icon: 'none' })
-                                continue
-                            }
-
+                            // 跳过客户端文件类型校验：uni.chooseImage 在不同平台返回的
+                            // tempPath 格式各异（Android content URI、H5 blob URL 等），
+                            // 无法可靠提取扩展名。格式校验统一由后端 /api/repair/upload-image 完成。
                             const uploadRes = await uploadImage(tempPath)
                             if (uploadRes && uploadRes.status === 'ok') {
                                 // 只存储相对路径，不包含 API_BASE
                                 this.form.note_images.push(uploadRes.data.url)
+                                uni.showToast({ title: '上传成功', icon: 'success', duration: 1000 })
+                            } else {
+                                uni.showToast({ title: uploadRes?.message || '上传失败', icon: 'none' })
                             }
                         } catch (e) {
-                            uni.showToast({ title: '图片上传失败', icon: 'none' })
+                            console.error('图片上传异常:', e)
+                            uni.showToast({ title: '上传失败，请检查网络', icon: 'none' })
+                        } finally {
+                            uni.hideLoading()
                         }
                     }
+                },
+                fail: (err) => {
+                    console.error('选择图片失败:', err)
+                    uni.showToast({ title: '选择图片失败', icon: 'none' })
                 }
             })
         },

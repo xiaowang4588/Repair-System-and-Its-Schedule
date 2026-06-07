@@ -326,11 +326,49 @@ class GuideFavorite(BaseModel):
         )
 
 
+class TokenRevocation(BaseModel):
+    """Token吊销记录表（密码修改后批量失效旧Token）"""
+    id = AutoField(primary_key=True)
+    user_type = CharField(max_length=20)   # 'admin' 或 'student'
+    user_id = CharField(max_length=100)    # 管理员用户名 或 学生学号
+    revoked_at = CharField()               # 吊销时间戳（Unix秒）
+    reason = CharField(default='')          # 吊销原因（如 'password_change'）
+    created_at = CharField(default='')      # 记录创建时间
+
+    class Meta:
+        table_name = 'token_revocations'
+        indexes = (
+            (('user_type', 'user_id'), False),
+        )
+
+
+class SecurityEvent(BaseModel):
+    """安全事件日志表（入侵检测、异常行为记录）"""
+    id = AutoField(primary_key=True)
+    event_type = CharField(max_length=50)   # 事件类型：login_failure, ip_lockout, off_hours_access, bulk_export, abnormal_ua
+    severity = CharField(max_length=20)     # 严重级别：INFO, WARNING, CRITICAL
+    source_ip = CharField(max_length=50)    # 来源IP
+    user_type = CharField(max_length=20, default='')  # admin / student
+    user_id = CharField(max_length=100, default='')    # 用户标识
+    detail = TextField(default='')          # 事件详情（JSON）
+    created_at = CharField(default='')      # 事件时间
+
+    class Meta:
+        table_name = 'security_events'
+        indexes = (
+            (('event_type',), False),
+            (('severity',), False),
+            (('source_ip',), False),
+            (('created_at',), False),
+        )
+
+
 def init_db():
     """初始化数据库（创建表）"""
     db.connect(reuse_if_open=True)
     db.create_tables([Repair, ModificationLog, Config, Student,
-                      GuidePost, GuideLike, GuideComment, GuideFavorite])
+                      GuidePost, GuideLike, GuideComment, GuideFavorite,
+                      TokenRevocation, SecurityEvent])
     db.close()
 
 

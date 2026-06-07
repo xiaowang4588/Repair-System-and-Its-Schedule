@@ -432,21 +432,50 @@ export function uploadImage(filePath) {
         if (token) {
             header['Authorization'] = `Bearer ${token}`
         }
+
+        // 30 秒超时保护：避免打包后的 APP 中 uploadFile 因网络问题无限挂起
+        let settled = false
+        const timer = setTimeout(() => {
+            if (!settled) {
+                settled = true
+                console.error('[uploadImage] 上传超时（30s）:', filePath)
+                reject(new Error('上传超时，请检查网络连接'))
+            }
+        }, 30000)
+
         uni.uploadFile({
             url: config.API_BASE + '/api/repair/upload-image',
             filePath: filePath,
             name: 'file',
             header: header,
             success: (res) => {
+                if (settled) return
+                settled = true
+                clearTimeout(timer)
                 try {
+                    // 检查 HTTP 状态码
+                    if (res.statusCode !== 200) {
+                        console.error('[uploadImage] HTTP', res.statusCode, ':', res.data)
+                        reject(new Error(`服务器错误(${res.statusCode})`))
+                        return
+                    }
                     const data = JSON.parse(res.data)
-                    resolve(data)
+                    if (data && data.status === 'ok') {
+                        resolve(data)
+                    } else {
+                        reject(new Error(data?.message || '上传失败'))
+                    }
                 } catch (e) {
-                    reject(e)
+                    console.error('[uploadImage] 解析响应失败:', e, '原始数据:', res.data)
+                    reject(new Error('服务器响应异常'))
                 }
             },
             fail: (err) => {
-                reject(err)
+                if (settled) return
+                settled = true
+                clearTimeout(timer)
+                console.error('[uploadImage] 上传失败:', JSON.stringify(err))
+                reject(new Error('网络连接失败，请检查网络'))
             }
         })
     }))

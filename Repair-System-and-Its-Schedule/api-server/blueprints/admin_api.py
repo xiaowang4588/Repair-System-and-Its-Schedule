@@ -3,7 +3,8 @@
 包含管理员登录、数据源管理、课表管理、学生管理、系统设置等接口
 """
 from flask import Blueprint, request, jsonify
-from utils.token_utils import generate_admin_token, verify_admin_token
+from utils.token_utils import generate_admin_token, verify_admin_token, revoke_tokens_for_user, refresh_admin_token
+from utils.security_monitor import security_monitor, IP_LOCKOUT_DURATION
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ def init_blueprint(admin_cfg, cache_mgr, repair_mgr, student_mgr, secret_key=Non
 
 
 def admin_required(f):
-    """管理员认证装饰器（HMAC Token 验证）"""
+    """管理员认证装饰器（HMAC Token 验证，支持Token自动刷新）"""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -46,22 +47,55 @@ def admin_required(f):
 
         # 将管理员用户名存入 request 上下文
         request.admin_username = result['username']
-        return f(*args, **kwargs)
+
+        # 执行原函数
+        response = f(*args, **kwargs)
+
+        # 如果Token需要刷新，在响应头中返回新Token
+        if result.get('needs_refresh'):
+            new_token = generate_admin_token(result['username'], _app_secret_key)
+            if isinstance(response, tuple):
+                resp = jsonify(response[0].get_json() if hasattr(response[0], 'get_json') else response[0])
+                resp.headers['X-New-Token'] = new_token
+                return resp, response[1] if len(response) > 1 else 200
+            else:
+                if hasattr(response, 'headers'):
+                    response.headers['X-New-Token'] = new_token
+
+        return response
 
     return decorated
 
 
 @admin_bp.route('/admin/login', methods=['POST'])
 def admin_login():
-    """管理员登录"""
+    """管理员登录（集成入侵检测）"""
+    ip = request.remote_addr or 'unknown'
     data = request.get_json() or {}
     username = data.get('username', '')
     password = data.get('password', '')
 
+    # 检查IP是否被锁定
+    if security_monitor.is_ip_locked(ip):
+        remaining = security_monitor.get_lockout_remaining(ip)
+        return jsonify({
+            'status': 'error',
+            'message': f'登录尝试过多，IP已被锁定，请{remaining}秒后重试'
+        }), 429
+
     if admin_config.verify_admin(username, password):
+        # 登录成功，清除失败计数
+        security_monitor.record_login_success(ip, username, 'admin')
         token = generate_admin_token(username, _app_secret_key)
         return jsonify({'status': 'ok', 'token': token, 'username': username})
     else:
+        # 登录失败，记录并检查是否需要锁定
+        lock_result = security_monitor.record_login_failure(ip, username, 'admin')
+        if lock_result['locked']:
+            return jsonify({
+                'status': 'error',
+                'message': f'登录失败次数过多，IP已被锁定{IP_LOCKOUT_DURATION}秒'
+            }), 429
         return jsonify({'status': 'error', 'message': '账号或密码错误'}), 401
 
 
@@ -192,7 +226,7 @@ def admin_settings_cache():
 @admin_bp.route('/admin/settings/password', methods=['POST'])
 @admin_required
 def admin_settings_password():
-    """修改管理员密码"""
+    """修改管理员密码（修改后吊销所有旧Token）"""
     try:
         data = request.get_json() or {}
         old_password = data.get('old_password', '')
@@ -204,7 +238,33 @@ def admin_settings_password():
         if 'error' in result:
             return jsonify({'status': 'error', 'message': result['error']}), 400
 
-        return jsonify({'status': 'ok', 'message': '密码修改成功'})
+        # 密码修改成功，吊销管理员的所有旧Token
+        username = request.admin_username
+        revoke_tokens_for_user('admin', username, 'password_change')
+
+        # 生成新Token返回
+        new_token = generate_admin_token(username, _app_secret_key)
+
+        return jsonify({
+            'status': 'ok',
+            'message': '密码修改成功，请使用新Token',
+            'data': {'token': new_token}
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@admin_bp.route('/admin/token-refresh', methods=['POST'])
+@admin_required
+def admin_token_refresh():
+    """管理员Token刷新接口"""
+    try:
+        username = request.admin_username
+        new_token = generate_admin_token(username, _app_secret_key)
+        return jsonify({
+            'status': 'ok',
+            'data': {'token': new_token}
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -456,5 +516,72 @@ def admin_cache_status():
     try:
         status = cache.get_processing_status()
         return jsonify({'status': 'ok', 'data': status})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# ============ 安全监控端点 ============
+
+@admin_bp.route('/admin/security/events', methods=['GET'])
+@admin_required
+def admin_security_events():
+    """查询安全事件"""
+    try:
+        event_type = request.args.get('event_type', '')
+        severity = request.args.get('severity', '')
+        hours = request.args.get('hours', 24, type=int)
+        limit = request.args.get('limit', 100, type=int)
+
+        events = security_monitor.get_security_events(
+            event_type=event_type,
+            severity=severity,
+            hours=hours,
+            limit=limit,
+        )
+        return jsonify({'status': 'ok', 'data': events})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@admin_bp.route('/admin/security/summary', methods=['GET'])
+@admin_required
+def admin_security_summary():
+    """获取安全事件摘要"""
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        summary = security_monitor.get_security_summary(hours=hours)
+        return jsonify({'status': 'ok', 'data': summary})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@admin_bp.route('/admin/security/locked-ips', methods=['GET'])
+@admin_required
+def admin_security_locked_ips():
+    """查看当前被锁定的IP列表"""
+    try:
+        summary = security_monitor.get_security_summary(hours=1)
+        return jsonify({'status': 'ok', 'data': summary.get('locked_ips', [])})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@admin_bp.route('/admin/security/unlock-ip', methods=['POST'])
+@admin_required
+def admin_security_unlock_ip():
+    """手动解锁IP"""
+    try:
+        data = request.get_json() or {}
+        ip = data.get('ip', '').strip()
+        if not ip:
+            return jsonify({'status': 'error', 'message': '缺少IP地址'}), 400
+
+        # 从锁定列表中移除
+        with security_monitor._data_lock:
+            if ip in security_monitor._ip_lockouts:
+                del security_monitor._ip_lockouts[ip]
+                return jsonify({'status': 'ok', 'message': f'IP {ip} 已解锁'})
+            else:
+                return jsonify({'status': 'ok', 'message': f'IP {ip} 未被锁定'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

@@ -139,41 +139,52 @@ export default {
 
         // 选择图片
         chooseImage() {
+            const maxCount = 9 - this.form.images.length
+            if (maxCount <= 0) {
+                uni.showToast({ title: '最多上传9张图片', icon: 'none' })
+                return
+            }
             uni.chooseImage({
-                count: 9 - this.form.images.length,
+                count: maxCount,
                 sizeType: ['compressed'],
                 sourceType: ['album', 'camera'],
                 success: async (res) => {
                     for (const tempPath of res.tempFilePaths) {
+                        uni.showLoading({ title: '上传中...' })
                         try {
-                            const fileInfo = await new Promise((resolve, reject) => {
-                                uni.getFileInfo({ filePath: tempPath, success: resolve, fail: reject })
-                            })
-                            if (fileInfo.size > 10 * 1024 * 1024) {
-                                uni.showToast({ title: '图片不能超过10MB', icon: 'none' })
-                                continue
-                            }
                             const uploadRes = await this.uploadImage(tempPath)
                             if (uploadRes && uploadRes.status === 'ok') {
                                 this.form.images.push(uploadRes.data.url)
+                                uni.showToast({ title: '上传成功', icon: 'success', duration: 1000 })
                             } else {
                                 uni.showToast({ title: uploadRes?.message || '上传失败', icon: 'none' })
                             }
                         } catch (e) {
-                            uni.showToast({ title: '图片上传失败', icon: 'none' })
+                            console.error('图片上传异常:', e)
+                            uni.showToast({ title: '上传失败，请检查网络', icon: 'none' })
+                        } finally {
+                            uni.hideLoading()
                         }
                     }
+                },
+                fail: (err) => {
+                    console.error('选择图片失败:', err)
+                    uni.showToast({ title: '选择图片失败', icon: 'none' })
                 }
             })
         },
 
-        // 上传图片
+        // 上传图片（附带 auth token，与 api/index.js 的 uploadImage 逻辑一致）
         uploadImage(filePath) {
             return new Promise((resolve, reject) => {
+                const token = uni.getStorageSync('student_token')
+                const header = {}
+                if (token) header['Authorization'] = `Bearer ${token}`
                 uni.uploadFile({
                     url: config.API_BASE + '/api/repair/upload-image',
                     filePath: filePath,
                     name: 'file',
+                    header: header,
                     success: (res) => {
                         try { resolve(JSON.parse(res.data)) } catch (e) { reject(e) }
                     },
