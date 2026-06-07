@@ -152,9 +152,13 @@ def api_guide_list():
 
         query = GuidePost.select().where(GuidePost.is_deleted == False)
 
-        # 标签筛选
+        # 标签筛选（精确匹配 JSON 数组元素，避免子串误匹配）
         if device_tag:
-            query = query.where(GuidePost.device_tags.contains(f'"{device_tag}"'))
+            exact_tag = f'"{device_tag}"'
+            query = query.where(
+                GuidePost.device_tags.contains(exact_tag + ',') |
+                GuidePost.device_tags.contains(exact_tag + ']')
+            )
         if location_tag:
             query = query.where(GuidePost.location_tag == location_tag)
 
@@ -173,28 +177,31 @@ def api_guide_list():
 
         posts = query.order_by(GuidePost.id.desc()).paginate(page, page_size)
 
-        # 获取当前用户的点赞和收藏状态
+        # 获取当前用户的点赞和收藏状态（仅查询当前页的 post_id，避免全表扫描）
         current_student_id = _get_optional_student_id()
         liked_ids = set()
         favorited_ids = set()
         if current_student_id:
+            page_post_ids = [p.id for p in posts]
             liked_ids = {l.post_id for l in
                          GuideLike.select(GuideLike.post_id).where(
-                             GuideLike.student_id == current_student_id)}
+                             (GuideLike.post_id.in_(page_post_ids)) &
+                             (GuideLike.student_id == current_student_id))}
             favorited_ids = {f.post_id for f in
                              GuideFavorite.select(GuideFavorite.post_id).where(
-                                 GuideFavorite.student_id == current_student_id)}
+                                 (GuideFavorite.post_id.in_(page_post_ids)) &
+                                 (GuideFavorite.student_id == current_student_id))}
 
-        records = []
+        result_records = []
         for post in posts:
             d = post.to_dict()
             d['is_liked'] = post.id in liked_ids
             d['is_favorited'] = post.id in favorited_ids
-            records.append(d)
+            result_records.append(d)
 
         return jsonify({
             'status': 'ok',
-            'records': records,
+            'records': result_records,
             'total': total,
             'page': page,
             'page_size': page_size,
@@ -418,16 +425,21 @@ def api_guide_search():
 
         posts = query.order_by(GuidePost.id.desc()).paginate(page, page_size)
 
+        # 获取当前用户的点赞和收藏状态（仅查询当前页的 post_id，避免全表扫描）
         current_student_id = _get_optional_student_id()
         liked_ids = set()
         favorited_ids = set()
         if current_student_id:
-            liked_ids = {l.post_id for l in
-                         GuideLike.select(GuideLike.post_id).where(
-                             GuideLike.student_id == current_student_id)}
-            favorited_ids = {f.post_id for f in
-                             GuideFavorite.select(GuideFavorite.post_id).where(
-                                 GuideFavorite.student_id == current_student_id)}
+            page_post_ids = [p.id for p in posts]
+            if page_post_ids:
+                liked_ids = {l.post_id for l in
+                             GuideLike.select(GuideLike.post_id).where(
+                                 (GuideLike.post_id.in_(page_post_ids)) &
+                                 (GuideLike.student_id == current_student_id))}
+                favorited_ids = {f.post_id for f in
+                                 GuideFavorite.select(GuideFavorite.post_id).where(
+                                     (GuideFavorite.post_id.in_(page_post_ids)) &
+                                     (GuideFavorite.student_id == current_student_id))}
 
         records = []
         for post in posts:
@@ -549,9 +561,10 @@ def api_guide_tags():
 @guide_bp.route('/api/guide/like', methods=['POST'])
 @student_required
 def api_guide_like():
-    """点赞/取消点赞"""
+    """点赞/取消点赞（使用原子计数器，避免并发竞态）"""
     try:
         from models import GuidePost, GuideLike
+        from peewee import fn as pw_fn
 
         data = request.get_json() or {}
         post_id = data.get('id')
@@ -573,21 +586,26 @@ def api_guide_like():
         ).first()
 
         if existing:
-            # 取消点赞
+            # 取消点赞：原子减1
             existing.delete_instance()
-            post.like_count = max(0, post.like_count - 1)
+            GuidePost.update(
+                like_count=pw_fn.MAX(0, GuidePost.like_count - 1)
+            ).where(GuidePost.id == post_id).execute()
             is_liked = False
         else:
-            # 点赞
+            # 点赞：原子加1
             GuideLike.create(
                 post_id=post_id,
                 student_id=student_id,
                 created_at=_now(),
             )
-            post.like_count += 1
+            GuidePost.update(
+                like_count=GuidePost.like_count + 1
+            ).where(GuidePost.id == post_id).execute()
             is_liked = True
 
-        post.save()
+        # 读取最新计数返回给前端
+        post = GuidePost.get(GuidePost.id == post_id)
 
         return jsonify({
             'status': 'ok',
@@ -653,9 +671,11 @@ def api_guide_comment():
             created_at=_now(),
         )
 
-        # 更新评论计数
-        post.comment_count += 1
-        post.save()
+        # 更新评论计数（原子操作，避免并发丢失）
+        from peewee import fn as pw_fn
+        GuidePost.update(
+            comment_count=GuidePost.comment_count + 1
+        ).where(GuidePost.id == post_id).execute()
 
         return jsonify({'status': 'ok', 'data': {'id': comment.id}})
     except Exception as e:
@@ -725,13 +745,11 @@ def api_guide_comment_delete():
         comment.is_deleted = True
         comment.save()
 
-        # 更新评论计数
-        try:
-            post = GuidePost.get(GuidePost.id == comment.post_id)
-            post.comment_count = max(0, post.comment_count - 1)
-            post.save()
-        except GuidePost.DoesNotExist:
-            pass
+        # 原子更新评论计数
+        from peewee import fn as pw_fn
+        GuidePost.update(
+            comment_count=pw_fn.MAX(0, GuidePost.comment_count - 1)
+        ).where(GuidePost.id == comment.post_id).execute()
 
         return jsonify({'status': 'ok', 'message': '删除成功'})
     except Exception as e:
@@ -746,9 +764,10 @@ def api_guide_comment_delete():
 @guide_bp.route('/api/guide/favorite', methods=['POST'])
 @student_required
 def api_guide_favorite():
-    """收藏/取消收藏"""
+    """收藏/取消收藏（使用原子计数器，避免并发竞态）"""
     try:
         from models import GuidePost, GuideFavorite
+        from peewee import fn as pw_fn
 
         data = request.get_json() or {}
         post_id = data.get('id')
@@ -769,19 +788,26 @@ def api_guide_favorite():
         ).first()
 
         if existing:
+            # 取消收藏：原子减1
             existing.delete_instance()
-            post.favorite_count = max(0, post.favorite_count - 1)
+            GuidePost.update(
+                favorite_count=pw_fn.MAX(0, GuidePost.favorite_count - 1)
+            ).where(GuidePost.id == post_id).execute()
             is_favorited = False
         else:
+            # 收藏：原子加1
             GuideFavorite.create(
                 post_id=post_id,
                 student_id=student_id,
                 created_at=_now(),
             )
-            post.favorite_count += 1
+            GuidePost.update(
+                favorite_count=GuidePost.favorite_count + 1
+            ).where(GuidePost.id == post_id).execute()
             is_favorited = True
 
-        post.save()
+        # 读取最新计数返回给前端
+        post = GuidePost.get(GuidePost.id == post_id)
 
         return jsonify({
             'status': 'ok',
@@ -837,9 +863,9 @@ def api_guide_my_posts():
 @guide_bp.route('/api/guide/my-favorites', methods=['GET'])
 @student_required
 def api_guide_my_favorites():
-    """获取我的收藏"""
+    """获取我的收藏（批量查询优化，消除 N+1 问题）"""
     try:
-        from models import GuidePost, GuideFavorite
+        from models import GuidePost, GuideFavorite, GuideLike
 
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 20, type=int)
@@ -856,18 +882,40 @@ def api_guide_my_favorites():
         favs = fav_query.paginate(page, page_size)
         post_ids = [f.post_id for f in favs]
 
-        # 获取动态详情
+        if not post_ids:
+            return jsonify({
+                'status': 'ok',
+                'records': [],
+                'total': total,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': total_pages,
+            })
+
+        # 批量查询动态详情（一条 SQL 替代 N 条）
+        posts = GuidePost.select().where(
+            (GuidePost.id.in_(post_ids)) & (GuidePost.is_deleted == False)
+        )
+        post_map = {p.id: p for p in posts}
+
+        # 批量查询当前用户的点赞状态
+        liked_ids = set()
+        if post_ids:
+            liked_ids = {l.post_id for l in
+                         GuideLike.select(GuideLike.post_id).where(
+                             (GuideLike.post_id.in_(post_ids)) &
+                             (GuideLike.student_id == request.student_id))}
+
+        # 按收藏顺序组装结果（保持分页排序）
         records = []
         for pid in post_ids:
-            try:
-                post = GuidePost.get(
-                    (GuidePost.id == pid) & (GuidePost.is_deleted == False))
-                d = post.to_dict()
-                d['is_liked'] = False
-                d['is_favorited'] = True
-                records.append(d)
-            except GuidePost.DoesNotExist:
+            post = post_map.get(pid)
+            if not post:
                 continue
+            d = post.to_dict()
+            d['is_liked'] = pid in liked_ids
+            d['is_favorited'] = True
+            records.append(d)
 
         return jsonify({
             'status': 'ok',
@@ -885,18 +933,13 @@ def api_guide_my_favorites():
 @guide_bp.route('/api/guide/stats', methods=['GET'])
 @student_required
 def api_guide_stats():
-    """获取个人防坑指南统计（可选认证，token无效时返回空数据而非401）"""
+    """获取个人防坑指南统计（@student_required 已验证 token，直接用 request.student_id）"""
     try:
         from models import GuidePost, GuideFavorite
 
-        # 仅从 token 获取学生 ID（不允许通过 URL 参数枚举学号）
-        student_id = _get_optional_student_id()
-
-        if not student_id:
-            return jsonify({
-                'status': 'ok',
-                'data': {'post_count': 0, 'favorite_count': 0}
-            })
+        # @student_required 已验证 token 有效性并设置 request.student_id
+        # 无需再次解析 token，直接使用 request 上下文中的已验证信息
+        student_id = request.student_id
 
         post_count = GuidePost.select().where(
             (GuidePost.student_id == student_id) &

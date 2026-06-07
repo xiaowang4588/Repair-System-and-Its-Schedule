@@ -50,9 +50,8 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
+import { getImageUrl as resolveImageUrl } from '../../config/index.js'
 import { getMyGuidePosts, deleteGuide } from '../../api/index.js'
-const API_BASE = config.API_BASE
 
 export default {
     data() {
@@ -115,7 +114,7 @@ export default {
         },
         goDetail(id) { uni.navigateTo({ url: `/pages/guide/detail?id=${id}` }) },
         goEdit(item) { uni.navigateTo({ url: `/pages/guide/publish?edit=${item.id}` }) },
-        getImageUrl(img) { if (!img) return ''; if (img.startsWith('http')) return img; return API_BASE + img },
+        getImageUrl(img) { return resolveImageUrl(img) },
         formatTime(t) { if (!t) return ''; const p = t.split(' '); if (p.length >= 2) return p[0].substring(5) + ' ' + p[1].substring(0,5); return t },
     }
 }

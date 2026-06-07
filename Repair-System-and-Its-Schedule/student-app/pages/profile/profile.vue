@@ -93,9 +93,7 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
 import { request, post, getGuideStats } from '../../api/index.js'
-const API_BASE = config.API_BASE
 
 export default {
     data() {

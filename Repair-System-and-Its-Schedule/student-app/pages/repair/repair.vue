@@ -183,8 +183,8 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
-const API_BASE = config.API_BASE
+import config, { getImageUrl as resolveImageUrl } from '../../config/index.js'
+import { request, post, uploadImage } from '../../api/index.js'
 
 export default {
     data() {
@@ -259,7 +259,7 @@ export default {
         async initData() {
             // 获取当前时间
             try {
-                const res = await this.apiGet('/api/time')
+                const res = await request('/api/time')
                 if (res && res.status === 'ok') {
                     // 只取日期部分（年-月-日）
                     this.form.report_time = res.data.current_time ? res.data.current_time.substring(0, 10) : ''
@@ -287,7 +287,7 @@ export default {
 
             // 获取当前周次（与教师端周次管理同步）
             try {
-                const res = await this.apiGet('/api/current-week')
+                const res = await request('/api/current-week')
                 if (res && res.status === 'ok' && res.data.current_week) {
                     this.form.week_number = res.data.current_week
                 }
@@ -326,13 +326,13 @@ export default {
         async autoFill(classroom) {
             try {
                 // 获取当前时间（只取日期）
-                const timeRes = await this.apiGet('/api/time')
+                const timeRes = await request('/api/time')
                 if (timeRes && timeRes.status === 'ok') {
                     this.form.report_time = timeRes.data.current_time ? timeRes.data.current_time.substring(0, 10) : ''
                 }
 
                 // 调用自动填充接口，传入教室、星期、节次
-                const res = await this.apiGet('/api/repair/auto-fill', {
+                const res = await request('/api/repair/auto-fill', {
                     classroom: classroom,
                     weekday: this.form.weekday,
                     section: this.form.section
@@ -370,7 +370,7 @@ export default {
         // 获取空教室推荐
         async getNearbyRooms(classroom) {
             try {
-                const res = await this.apiGet('/api/repair/nearby-rooms', {
+                const res = await request('/api/repair/nearby-rooms', {
                     classroom: classroom,
                     weekday: this.form.weekday,
                     section: this.form.section
@@ -439,7 +439,7 @@ export default {
                                 continue
                             }
 
-                            const uploadRes = await this.uploadFile(tempPath)
+                            const uploadRes = await uploadImage(tempPath)
                             if (uploadRes && uploadRes.status === 'ok') {
                                 // 只存储相对路径，不包含 API_BASE
                                 this.form.note_images.push(uploadRes.data.url)
@@ -479,7 +479,7 @@ export default {
 
             uni.showLoading({ title: '提交中...' })
             try {
-                const res = await this.apiPost('/api/repair/create', this.form)
+                const res = await post('/api/repair/create', this.form)
                 if (res && res.status === 'ok') {
                     uni.showToast({ title: '报修提交成功', icon: 'success' })
                     setTimeout(() => {
@@ -495,87 +495,6 @@ export default {
             }
         },
 
-        // ============================================================
-        // API 请求封装
-        // ============================================================
-        apiGet(url, params = {}) {
-            return new Promise((resolve, reject) => {
-                // 构建查询参数
-                let queryString = Object.keys(params)
-                    .filter(key => params[key] !== undefined && params[key] !== '')
-                    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-                    .join('&')
-
-                const fullUrl = queryString ? `${API_BASE}${url}?${queryString}` : `${API_BASE}${url}`
-
-                uni.request({
-                    url: fullUrl,
-                    method: 'GET',
-                    header: {
-                        'Content-Type': 'application/json'
-                    },
-                    success: (res) => {
-                        if (res.statusCode === 200) {
-                            resolve(res.data)
-                        } else {
-                            console.error('API错误:', res.statusCode, res.data)
-                            resolve(null)
-                        }
-                    },
-                    fail: (err) => {
-                        console.error('请求失败:', err)
-                        reject(err)
-                    }
-                })
-            })
-        },
-
-        apiPost(url, data = {}) {
-            return new Promise((resolve, reject) => {
-                uni.request({
-                    url: API_BASE + url,
-                    method: 'POST',
-                    data: data,
-                    header: {
-                        'Content-Type': 'application/json'
-                    },
-                    success: (res) => {
-                        if (res.statusCode === 200) {
-                            resolve(res.data)
-                        } else {
-                            const errMsg = res.data?.message || `请求失败(${res.statusCode})`
-                            console.error('API错误:', res.statusCode, res.data)
-                            reject(new Error(errMsg))
-                        }
-                    },
-                    fail: (err) => {
-                        console.error('请求失败:', err)
-                        reject(new Error('网络请求失败'))
-                    }
-                })
-            })
-        },
-
-        uploadFile(filePath) {
-            return new Promise((resolve, reject) => {
-                uni.uploadFile({
-                    url: API_BASE + '/api/repair/upload-image',
-                    filePath: filePath,
-                    name: 'file',
-                    success: (res) => {
-                        try {
-                            const data = JSON.parse(res.data)
-                            resolve(data)
-                        } catch (e) {
-                            reject(e)
-                        }
-                    },
-                    fail: (err) => {
-                        reject(err)
-                    }
-                })
-            })
-        }
     }
 }
 </script>

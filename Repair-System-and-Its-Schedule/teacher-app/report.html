@@ -578,7 +578,14 @@
 
         // 获取认证头
         function getAuthHeaders() {
-            const token = localStorage.getItem('admin_token');
+            let token = localStorage.getItem('admin_token');
+            // 兼容处理：旧版 Base64 格式 token（含 : 无 .）已失效，自动清除
+            if (token && token.includes(':') && !token.includes('.')) {
+                localStorage.removeItem('admin_token');
+                localStorage.removeItem('admin_username');
+                window.location.href = '/';
+                return {};
+            }
             return token ? { 'Authorization': `Bearer ${token}` } : {};
         }
 

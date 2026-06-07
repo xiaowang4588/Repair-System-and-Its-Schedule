@@ -94,9 +94,10 @@ function handle401(requestUrl) {
 /**
  * 通用请求核心逻辑
  */
-function doRequest(url, method, data, resolve, reject) {
+async function doRequest(url, method, data, resolve, reject) {
     const isGet = method === 'GET'
-    // 使用动态 getter，确保读取到初始化后的值
+    // 等待配置初始化完成，确保 API_BASE 有值
+    await ensureConfig()
     let fullUrl = config.API_BASE + url
 
     if (isGet && data && Object.keys(data).length > 0) {
@@ -401,6 +402,38 @@ export function uploadGuideVideo(filePath) {
         }
         uni.uploadFile({
             url: config.API_BASE + '/api/guide/upload-video',
+            filePath: filePath,
+            name: 'file',
+            header: header,
+            success: (res) => {
+                try {
+                    const data = JSON.parse(res.data)
+                    resolve(data)
+                } catch (e) {
+                    reject(e)
+                }
+            },
+            fail: (err) => {
+                reject(err)
+            }
+        })
+    }))
+}
+
+/**
+ * 上传报修备注图片
+ * @param {string} filePath - 临时文件路径
+ * @returns {Promise} 返回 { status, data: { url, filename } }
+ */
+export function uploadImage(filePath) {
+    return ensureConfig().then(() => new Promise((resolve, reject) => {
+        const token = uni.getStorageSync('student_token')
+        const header = {}
+        if (token) {
+            header['Authorization'] = `Bearer ${token}`
+        }
+        uni.uploadFile({
+            url: config.API_BASE + '/api/repair/upload-image',
             filePath: filePath,
             name: 'file',
             header: header,

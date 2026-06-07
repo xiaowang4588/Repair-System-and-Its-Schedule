@@ -58,7 +58,7 @@ def add_security_headers(response):
     # Content-Security-Policy: 限制资源加载来源，防止 XSS
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob:; "
         "font-src 'self' data:; "
@@ -77,13 +77,24 @@ _request_counts = {}
 _RATE_LIMIT_WINDOW = 60  # 秒
 _RATE_LIMIT_MAX = 120    # 每窗口最大请求数（通用）
 _RATE_LIMIT_LOGIN = 10   # 登录接口每窗口最大次数
+_last_cleanup = time.time()
+_CLEANUP_INTERVAL = 300  # 每 5 分钟全量清理一次
 
 def _check_rate_limit(key, max_requests):
     """检查频率限制，返回 True 表示被限流"""
+    global _last_cleanup
     now = time.time()
     window_start = now - _RATE_LIMIT_WINDOW
 
-    # 清理过期记录
+    # 定期全量清理所有过期 key，防止内存泄漏
+    if now - _last_cleanup > _CLEANUP_INTERVAL:
+        expired_keys = [k for k, v in _request_counts.items()
+                        if not v or v[-1] <= window_start]
+        for k in expired_keys:
+            del _request_counts[k]
+        _last_cleanup = now
+
+    # 清理当前 key 的过期时间戳
     if key in _request_counts:
         _request_counts[key] = [t for t in _request_counts[key] if t > window_start]
     else:

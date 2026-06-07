@@ -127,10 +127,8 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
+import { getImageUrl as resolveImageUrl } from '../../config/index.js'
 import { getGuideList, searchGuide, getGuideTags, toggleGuideLike, toggleGuideFavorite } from '../../api/index.js'
-
-const API_BASE = config.API_BASE
 
 export default {
     data() {
@@ -340,12 +338,8 @@ export default {
             uni.navigateTo({ url: `/pages/guide/detail?id=${this.records.find(r => r.video_url === url)?.id || ''}` })
         },
 
-        // 获取图片完整URL
-        getImageUrl(img) {
-            if (!img) return ''
-            if (img.startsWith('http')) return img
-            return API_BASE + img
-        },
+        // 获取图片完整URL（委托给共享工具函数）
+        getImageUrl(img) { return resolveImageUrl(img) },
 
         // 格式化时间
         formatTime(t) {

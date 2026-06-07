@@ -4,11 +4,15 @@ Peewee ORM 模型定义
 """
 import os
 import json
+import time
+import logging
 from datetime import datetime
 from peewee import (
     Model, SqliteDatabase, AutoField, CharField, IntegerField,
     BooleanField, TextField, ForeignKeyField, DateField
 )
+
+logger = logging.getLogger(__name__)
 
 # 数据库路径
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,11 +20,38 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, 'repair.db')
 
-# 数据库连接
-db = SqliteDatabase(DB_PATH, pragmas={
-    'journal_mode': 'wal',      # WAL模式，提升并发读写性能
-    'busy_timeout': 5000,       # 忙等待5秒，避免锁冲突
-    'foreign_keys': 1,          # 启用外键约束
+
+class RetrySqliteDatabase(SqliteDatabase):
+    """支持自动重试的 SQLite 数据库连接
+    当遇到 'database is locked' 错误时自动重试，解决 Gunicorn 多 worker 并发写入问题。"""
+
+    # 重试配置
+    MAX_RETRIES = 3
+    RETRY_DELAY = 0.1  # 100ms 基础延迟，指数退避
+
+    def execute_sql(self, sql, params=None, commit=None):
+        """执行 SQL，遇到锁定错误时自动重试"""
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                if commit is not None:
+                    return super().execute_sql(sql, params, commit)
+                return super().execute_sql(sql, params)
+            except Exception as e:
+                err_str = str(e).lower()
+                if ('locked' in err_str or 'busy' in err_str) and attempt < self.MAX_RETRIES:
+                    delay = self.RETRY_DELAY * (2 ** attempt)
+                    logger.warning(f"[DB] 数据库锁定，第 {attempt + 1} 次重试，等待 {delay:.1f}s: {sql[:80]}")
+                    time.sleep(delay)
+                    continue
+                raise
+
+
+# 数据库连接（使用支持重试的自定义数据库类）
+db = RetrySqliteDatabase(DB_PATH, pragmas={
+    'journal_mode': 'wal',       # WAL模式，提升并发读写性能
+    'busy_timeout': 15000,       # 忙等待15秒（原5秒在高并发下不够）
+    'foreign_keys': 1,           # 启用外键约束
+    'synchronous': 'normal',     # WAL模式下用NORMAL即可，减少fsync开销
 })
 
 
@@ -61,9 +92,15 @@ class Repair(BaseModel):
 
     class Meta:
         table_name = 'repairs'
+        indexes = (
+            (('status',), False),
+            (('report_time',), False),
+            (('student_id',), False),
+            (('semester',), False),
+        )
 
     def to_dict(self) -> dict:
-        """转换为字典（兼容旧的JSON格式）"""
+        """转换为字典（兼容旧的JSON格式，含修改日志）"""
         return {
             'id': self.id,
             'student_id': self.student_id,
@@ -90,6 +127,37 @@ class Repair(BaseModel):
             'notes': self.notes,
             'note_images': self.get_note_images(),
             'modification_log': [log.to_dict() for log in self.logs.order_by(ModificationLog.id)],
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+        }
+
+    def to_dict_light(self) -> dict:
+        """轻量版字典（不含修改日志，用于批量查询避免 N+1）"""
+        return {
+            'id': self.id,
+            'student_id': self.student_id,
+            'student_name': self.student_name,
+            'semester': self.semester,
+            'classroom': self.classroom,
+            'report_time': self.report_time,
+            'week_number': self.week_number,
+            'fault_type': self.fault_type,
+            'reporter_name': self.reporter_name,
+            'reporter_college': self.reporter_college,
+            'is_external_teacher': self.is_external_teacher,
+            'report_method': self.report_method,
+            'handler_name': self.handler_name,
+            'is_device_replaced': self.is_device_replaced,
+            'device_replace_note': self.device_replace_note,
+            'status': self.status,
+            'fault_cause': self.fault_cause,
+            'solution': self.solution,
+            'completion_time': self.completion_time,
+            'final_status': self.final_status,
+            'photo_url': self.photo_url,
+            'new_classroom': self.new_classroom,
+            'notes': self.notes,
+            'note_images': self.get_note_images(),
             'created_at': self.created_at,
             'updated_at': self.updated_at,
         }
@@ -201,7 +269,7 @@ class GuidePost(BaseModel):
 class GuideLike(BaseModel):
     """防坑指南点赞表"""
     id = AutoField(primary_key=True)
-    post_id = IntegerField(index=True)                      # 关联动态ID
+    post = ForeignKeyField(GuidePost, backref='likes', on_delete='CASCADE')  # 关联动态
     student_id = CharField(max_length=50, index=True)       # 点赞者学号
     created_at = CharField(default='')
 
@@ -215,7 +283,7 @@ class GuideLike(BaseModel):
 class GuideComment(BaseModel):
     """防坑指南评论表"""
     id = AutoField(primary_key=True)
-    post_id = IntegerField(index=True)                      # 关联动态ID
+    post = ForeignKeyField(GuidePost, backref='comments', on_delete='CASCADE')  # 关联动态
     student_id = CharField(max_length=50)                   # 评论者学号
     student_name = CharField(max_length=50, default='')     # 评论者姓名
     content = TextField(default='')                         # 评论内容
@@ -244,7 +312,7 @@ class GuideComment(BaseModel):
 class GuideFavorite(BaseModel):
     """防坑指南收藏表"""
     id = AutoField(primary_key=True)
-    post_id = IntegerField(index=True)                      # 关联动态ID
+    post = ForeignKeyField(GuidePost, backref='favorites', on_delete='CASCADE')  # 关联动态
     student_id = CharField(max_length=50, index=True)       # 收藏者学号
     created_at = CharField(default='')
 

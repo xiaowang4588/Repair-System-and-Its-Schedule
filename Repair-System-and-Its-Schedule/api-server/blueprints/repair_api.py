@@ -54,39 +54,39 @@ def _student_required(f):
 
 
 def _login_required(f):
-    """懒加载装饰器：需要登录（管理员或学生均可）"""
+    """懒加载装饰器：需要登录（管理员或学生均可）
+    优化：先解析 role，再按角色一次性完成验证，避免双重解析 token。"""
     @wraps(f)
     def decorated(*args, **kwargs):
-        from flask import request as req
-        auth = req.headers.get('Authorization', '')
-
+        auth = request.headers.get('Authorization', '')
         if not auth.startswith('Bearer '):
             return jsonify({'status': 'error', 'message': '未登录'}), 401
 
         token = auth[7:]
 
-        # 通过 payload 中的 role 字段判断是管理员还是学生 token
+        # 先解析 role 字段，决定走哪条验证路径
+        role = ''
         try:
             import base64, json
             payload_b64 = token.split('.', 1)[0]
             pad_len = (4 - len(payload_b64) % 4) % 4
             payload = json.loads(base64.urlsafe_b64decode(payload_b64 + '=' * pad_len))
-
-            if payload.get('role') == 'admin':
-                # 管理员 token
-                if admin_required:
-                    return admin_required(f)(*args, **kwargs)
-                return f(*args, **kwargs)
-            else:
-                # 学生 token
-                if student_required:
-                    return student_required(f)(*args, **kwargs)
-                return f(*args, **kwargs)
+            role = payload.get('role', '')
         except Exception:
-            # payload 解析失败，尝试学生验证
-            if student_required:
-                return student_required(f)(*args, **kwargs)
-            return jsonify({'status': 'error', 'message': '认证失败'}), 401
+            pass
+
+        if role == 'admin' and admin_required:
+            # 管理员：委托给 admin_required（它会完整验证签名 + 设置 request 属性）
+            return admin_required(f)(*args, **kwargs)
+        else:
+            # 学生（或 role 缺失的旧 token）：一次性完成验证，避免再套一层装饰器
+            from blueprints.student_api import verify_student_token
+            result = verify_student_token(token)
+            if not result.get('valid'):
+                return jsonify({'status': 'error', 'message': result.get('error', '认证失败')}), 401
+            request.student_id = result['student_id']
+            request.student_name = result['name']
+            return f(*args, **kwargs)
 
     return decorated
 
@@ -390,9 +390,9 @@ def api_repair_drill_fault_type():
 
 
 @repair_bp.route('/api/repair/drill/repair', methods=['GET'])
-@_admin_required
+@_login_required
 def api_repair_drill_repair():
-    """单条报修详情（需要管理员登录）"""
+    """单条报修详情（学生和管理员均可访问）"""
     try:
         repair_id = request.args.get('id', type=int)
         if not repair_id:

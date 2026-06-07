@@ -40,8 +40,7 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
-const API_BASE = config.API_BASE
+import config, { initConfig } from '../../config/index.js'
 
 export default {
     data() {
@@ -93,15 +92,26 @@ export default {
         redirectToMain() {
             uni.reLaunch({ url: '/pages/index/index' })
         },
-        apiPost(url, data) {
+        async apiPost(url, data) {
+            await initConfig()
             return new Promise((resolve, reject) => {
                 uni.request({
-                    url: API_BASE + url,
+                    url: config.API_BASE + url,
                     method: 'POST',
                     data: data,
                     header: { 'Content-Type': 'application/json' },
-                    success: (res) => resolve(res.statusCode === 200 ? res.data : null),
-                    fail: reject
+                    success: (res) => {
+                        if (res.statusCode === 200) {
+                            resolve(res.data)
+                        } else {
+                            console.error('[API Error]', res.statusCode, res.data)
+                            resolve(res.data || { status: 'error', message: `服务器错误(${res.statusCode})` })
+                        }
+                    },
+                    fail: (err) => {
+                        console.error('[API Fail]', err)
+                        reject(err)
+                    }
                 })
             })
         }

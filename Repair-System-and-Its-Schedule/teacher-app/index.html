@@ -2494,6 +2494,12 @@
     <script>
         const API_BASE = (window.location.origin && window.location.origin !== 'null') ? window.location.origin : 'http://localhost:5000';
         let authToken = localStorage.getItem('admin_token') || '';
+        // 兼容处理：旧版 Base64 格式 token（含 : 无 .）已失效，自动清除
+        if (authToken && authToken.includes(':') && !authToken.includes('.')) {
+            authToken = '';
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_username');
+        }
         let allRepairRecords = [];
 
         // HTML转义，防止XSS

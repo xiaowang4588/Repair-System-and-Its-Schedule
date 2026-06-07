@@ -31,7 +31,8 @@ def init_blueprint(cache_manager, admin_config_module, admin_req=None, student_r
 
 
 def _login_required(f):
-    """懒加载装饰器：需要登录（管理员或学生均可）"""
+    """懒加载装饰器：需要登录（管理员或学生均可）
+    优化：先解析 role，再按角色一次性完成验证，避免双重解析 token。"""
     @wraps(f)
     def decorated(*args, **kwargs):
         auth = request.headers.get('Authorization', '')
@@ -39,22 +40,30 @@ def _login_required(f):
             return jsonify({'status': 'error', 'message': '未登录'}), 401
 
         token = auth[7:]
+
+        # 先解析 role 字段，决定走哪条验证路径
+        role = ''
         try:
             payload_b64 = token.split('.', 1)[0]
             pad_len = (4 - len(payload_b64) % 4) % 4
             payload = json.loads(base64.urlsafe_b64decode(payload_b64 + '=' * pad_len))
-
-            if payload.get('role') == 'admin':
-                if _admin_required:
-                    return _admin_required(f)(*args, **kwargs)
-            else:
-                if _student_required:
-                    return _student_required(f)(*args, **kwargs)
+            role = payload.get('role', '')
         except Exception:
-            if _student_required:
-                return _student_required(f)(*args, **kwargs)
+            pass
 
-        return jsonify({'status': 'error', 'message': '认证失败'}), 401
+        if role == 'admin' and _admin_required:
+            # 管理员：委托给 admin_required（它会完整验证签名 + 设置 request 属性）
+            return _admin_required(f)(*args, **kwargs)
+        else:
+            # 学生（或 role 缺失的旧 token）：一次性完成验证，避免再套一层装饰器
+            from blueprints.student_api import verify_student_token
+            result = verify_student_token(token)
+            if not result.get('valid'):
+                return jsonify({'status': 'error', 'message': result.get('error', '认证失败')}), 401
+            request.student_id = result['student_id']
+            request.student_name = result['name']
+            return f(*args, **kwargs)
+
     return decorated
 
 
@@ -205,8 +214,10 @@ def api_query_weekly():
     参数：
       - keyword: 班级名称或教师姓名
       - type: class（按班级）或 teacher（按教师）
+    返回格式：
+      - weekly_data: {1: {"1-2节": [...], "3-4节": [...]}, 2: {...}, ...}
+      - sections: ["1-2节", "3-4节", ...]
     """
-    from utils.time_helper import CLASS_PERIODS
     try:
         keyword = request.args.get('keyword', '').strip()
         query_type = request.args.get('type', 'class')
@@ -227,28 +238,37 @@ def api_query_weekly():
             label = '班级' if query_type == 'class' else '教师'
             return jsonify({'status': 'ok', 'data': {'weekly_data': {}, 'sections': []}, 'message': f'未找到{label}: {keyword}'})
 
-        all_sections = filtered_df["上课节次"].unique().tolist()
+        # 收集所有出现的节次（去重、排序）
+        raw_sections = filtered_df["上课节次"].dropna().unique().tolist()
+        # 按起始数字排序：提取 "1-2节" 中的 1 作为排序键
+        def _section_sort_key(s):
+            m = re.match(r'(\d+)', str(s))
+            return int(m.group(1)) if m else 999
+        all_sections = sorted(set(s.strip() for s in raw_sections if s.strip()), key=_section_sort_key)
 
-        # 构建一周课表数据
+        # 构建一周课表数据：{day_number: {section_str: [courses]}}
         weekly_data = {}
         for day in range(1, 8):
-            day_name = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'][day]
             day_data = filtered_df[filtered_df['星期几'] == str(day)]
-            weekly_data[day_name] = []
+            section_map = {}
             for _, row in day_data.iterrows():
-                weekly_data[day_name].append({
-                    'course': row['课程名称'],
+                section = str(row['上课节次']).strip()
+                if not section:
+                    continue
+                if section not in section_map:
+                    section_map[section] = []
+                section_map[section].append({
+                    'course_name': row['课程名称'],
                     'teacher': row['姓名'],
                     'classroom': row['上课地点'],
-                    'section': row['上课节次'],
-                    'class_info': row['教学班组成']
                 })
+            weekly_data[day] = section_map
 
         return jsonify({
             'status': 'ok',
             'data': {
                 'weekly_data': weekly_data,
-                'sections': all_sections
+                'sections': all_sections,
             }
         })
     except Exception as e:
@@ -276,7 +296,17 @@ def api_empty_rooms():
         if not sections_str:
             return jsonify({'status': 'error', 'message': '请选择节次'}), 400
 
-        sections = [int(s.strip()) for s in sections_str.split(',') if s.strip()]
+        # 前端发送的是节次起始数字（如 "1,3,5" 代表 1-2节、3-4节、5-6节）
+        # 需要展开为完整的节次列表 [1,2,3,4,5,6]
+        raw_sections = [int(s.strip()) for s in sections_str.split(',') if s.strip()]
+        expanded_sections = []
+        for s in raw_sections:
+            if s not in expanded_sections:
+                expanded_sections.append(s)
+            # 奇数起始节次自动包含下一节（1→[1,2], 3→[3,4], 5→[5,6]）
+            if s % 2 == 1 and (s + 1) not in expanded_sections:
+                expanded_sections.append(s + 1)
+        sections = sorted(expanded_sections)
 
         # 获取缓存的查询系统
         query_system = cache.get_query_system()
@@ -290,11 +320,26 @@ def api_empty_rooms():
             'special': ClassroomType.SPECIAL
         }
 
+        # 模糊匹配楼栋名称（去除首尾空格，处理可能的编码差异）
+        matched_building = None
+        if building:
+            building_stripped = building.strip()
+            available_buildings = query_system.get_buildings()
+            # 精确匹配
+            if building_stripped in available_buildings:
+                matched_building = building_stripped
+            else:
+                # 模糊匹配：前端传的值包含在楼栋名中，或反之
+                for b in available_buildings:
+                    if building_stripped in b or b in building_stripped:
+                        matched_building = b
+                        break
+
         from datasource.empty_classroom_query import QueryCondition
         condition = QueryCondition(
             weekday=int(weekday),
             sections=sections,
-            building=building if building else None,
+            building=matched_building,
             classroom_type=type_map.get(classroom_type, ClassroomType.ALL),
             keyword=keyword if keyword else None,
             exclude_special=exclude_special
@@ -324,14 +369,31 @@ def api_empty_rooms():
 def api_buildings():
     """获取所有楼栋列表"""
     try:
-        df = cache.get_df()
-        buildings = sorted(set(
-            re.sub(r'\d+$', '', str(row['上课地点'])).strip()
-            for _, row in df.iterrows()
-            if row['上课地点'] and str(row['上课地点']).strip()
-        ))
+        # 优先从查询系统获取（与空教室查询使用相同提取逻辑）
+        buildings = []
+        try:
+            query_system = cache.get_query_system()
+            if query_system:
+                buildings = query_system.get_buildings()
+                logger.info(f"[BUILDINGS] 查询系统返回 {len(buildings)} 个楼栋: {buildings[:5]}")
+        except Exception as e:
+            logger.warning(f"[BUILDINGS] 从查询系统获取楼栋失败: {e}")
+
+        # 兜底：如果查询系统没有数据，从原始 DataFrame 提取
+        if not buildings:
+            from datasource.data_cleaning import extract_building_name
+            df = cache.get_df()
+            logger.info(f"[BUILDINGS] DataFrame 行数: {len(df)}, 列: {list(df.columns)}")
+            buildings = sorted(set(
+                extract_building_name(str(row['上课地点']))
+                for _, row in df.iterrows()
+                if row['上课地点'] and str(row['上课地点']).strip()
+            ))
+            logger.info(f"[BUILDINGS] DataFrame 兜底返回 {len(buildings)} 个楼栋: {buildings[:5]}")
+
         return jsonify({'status': 'ok', 'data': buildings})
     except Exception as e:
+        logger.error(f"[BUILDINGS] 接口异常: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 

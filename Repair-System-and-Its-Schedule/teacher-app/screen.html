@@ -911,7 +911,14 @@
 
         // 认证头（从 localStorage 读取 admin_token）
         function getAuthHeaders() {
-            const token = localStorage.getItem('admin_token');
+            let token = localStorage.getItem('admin_token');
+            // 兼容处理：旧版 Base64 格式 token（含 : 无 .）已失效，自动清除并跳转登录
+            if (token && token.includes(':') && !token.includes('.')) {
+                localStorage.removeItem('admin_token');
+                localStorage.removeItem('admin_username');
+                window.location.href = '/';
+                return {};
+            }
             const h = { 'Accept': 'application/json' };
             if (token) h['Authorization'] = 'Bearer ' + token;
             return h;

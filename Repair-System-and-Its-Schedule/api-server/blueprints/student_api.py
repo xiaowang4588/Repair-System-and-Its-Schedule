@@ -32,7 +32,9 @@ def init_blueprint(student_mgr, repair_mgr, secret_key):
 
 def verify_student_token(token: str) -> dict:
     """
-    验证学生token
+    验证学生token（兼容新旧两种格式）
+    新格式: base64({sid,name,role:"student",exp}).full_hmac_sha256
+    旧格式: base64({sid,name,exp}).hmac_sha256[:32]
     返回: {'valid': True, 'student_id': ..., 'name': ...} 或 {'valid': False, 'error': ...}
     """
     try:
@@ -52,15 +54,20 @@ def verify_student_token(token: str) -> dict:
         if payload.get('exp', 0) < time.time() - 60:
             return {'valid': False, 'error': 'token已过期'}
 
-        # 验证签名
+        # 验证签名：先尝试完整签名（新格式），再尝试截断签名（旧格式兼容）
         secret = app_secret_key if isinstance(app_secret_key, str) else app_secret_key.decode()
-        expected_sig = hmac.new(
+        full_sig = hmac.new(
             secret.encode(),
             payload_str.encode(),
             hashlib.sha256
-        ).hexdigest()[:32]
+        ).hexdigest()
 
-        if not hmac.compare_digest(signature, expected_sig):
+        is_valid = (
+            hmac.compare_digest(signature, full_sig) or           # 新格式：完整签名
+            hmac.compare_digest(signature, full_sig[:32])         # 旧格式：截断签名（向后兼容）
+        )
+
+        if not is_valid:
             return {'valid': False, 'error': 'token签名无效'}
 
         return {
@@ -109,21 +116,22 @@ def api_student_login():
         if 'error' in result:
             return jsonify({'status': 'error', 'message': result['error']}), 401
 
-        # 生成安全 token（HMAC签名 + 过期时间）
+        # 生成安全 token（HMAC签名 + 过期时间 + role字段，与管理员token格式统一）
         expire_time = int(time.time()) + 30 * 86400  # 30天过期
         payload = json.dumps({
             'sid': result['student_id'],
             'name': result['name'],
+            'role': 'student',
             'exp': expire_time
         }, ensure_ascii=False)
 
-        # 使用HMAC-SHA256签名
+        # 使用完整HMAC-SHA256签名（与管理员token一致，不再截断）
         secret = app_secret_key if isinstance(app_secret_key, str) else app_secret_key.decode()
         signature = hmac.new(
             secret.encode(),
             payload.encode(),
             hashlib.sha256
-        ).hexdigest()[:32]
+        ).hexdigest()
 
         # token格式: base64(payload).signature（去掉padding）
         token = f"{base64.urlsafe_b64encode(payload.encode()).decode().rstrip('=')}.{signature}"

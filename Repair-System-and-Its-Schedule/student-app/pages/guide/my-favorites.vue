@@ -41,9 +41,7 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
 import { getMyGuideFavorites, toggleGuideFavorite } from '../../api/index.js'
-const API_BASE = config.API_BASE
 
 export default {
     data() {

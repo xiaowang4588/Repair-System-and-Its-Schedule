@@ -30,6 +30,52 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+def _cleanup_removed_images(old_images_json: str, new_images_json: str):
+    """编辑时清理被移除的图片文件"""
+    try:
+        old_list = json.loads(old_images_json) if old_images_json else []
+        new_list = json.loads(new_images_json) if new_images_json else []
+        for img in old_list:
+            if img not in new_list:
+                _delete_upload_file(img)
+    except Exception:
+        pass
+
+
+def _delete_upload_file(path: str):
+    """删除 uploads 目录下的单个文件"""
+    if not path or not path.startswith('/uploads/'):
+        return
+    full_path = os.path.join(os.path.dirname(BASE_DIR), path.lstrip('/'))
+    try:
+        if os.path.exists(full_path):
+            os.remove(full_path)
+            logger.info(f"已清理孤立图片: {full_path}")
+    except Exception as e:
+        logger.warning(f"删除图片失败 {full_path}: {e}")
+
+
+# ============================================================
+# SQL 查询辅助
+# ============================================================
+
+def _sql_date_filter(range_type: str):
+    """返回 Peewee where 条件，按时间范围过滤"""
+    now = datetime.now()
+    if range_type == 'week':
+        week_start = (now - timedelta(days=now.weekday())).strftime('%Y-%m-%d')
+        return Repair.report_time >= week_start
+    elif range_type == 'month':
+        month_start = now.strftime('%Y-%m-01')
+        return Repair.report_time >= month_start
+    return True  # semester: 无日期过滤
+
+
+def _to_light_dicts(query) -> list:
+    """将 Peewee 查询结果转为轻量字典列表（无修改日志 N+1）"""
+    return [r.to_dict_light() for r in query]
+
+
 # ============================================================
 # 报修记录 CRUD
 # ============================================================
@@ -335,6 +381,8 @@ def update_repair(repair_id: int, data: dict) -> dict:
     if 'note_images' in update_fields:
         imgs = update_fields['note_images']
         update_fields['note_images'] = json.dumps(imgs, ensure_ascii=False) if isinstance(imgs, list) else imgs
+        # 清理被移除的图片文件
+        _cleanup_removed_images(repair.note_images or '', update_fields['note_images'])
 
     update_fields['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -394,6 +442,8 @@ def student_update_repair(repair_id: int, student_id: str, data: dict, student_n
         import json as _json
         imgs = update_fields['note_images']
         update_fields['note_images'] = _json.dumps(imgs, ensure_ascii=False) if isinstance(imgs, list) else imgs
+        # 清理被移除的图片文件
+        _cleanup_removed_images(repair.note_images or '', update_fields['note_images'])
 
     update_fields['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -611,9 +661,10 @@ def get_nearby_rooms(classroom: str, weekday: int, section: str, cache) -> dict:
     :param cache: 数据缓存对象
     :return: 推荐的空教室列表
     """
-    # 提取楼栋和楼层
-    building = re.sub(r'\d+$', '', classroom).strip()
-    floor_match = re.search(r'(\d)', classroom.replace(building, ''))
+    # 提取楼栋和楼层（使用与查询系统一致的 extract_building_name 逻辑）
+    from datasource.data_cleaning import extract_building_name
+    building = extract_building_name(classroom)
+    floor_match = re.search(r'(\d)', classroom)
     fault_floor = int(floor_match.group(1)) if floor_match else 0
 
     # 查询空教室
@@ -625,13 +676,27 @@ def get_nearby_rooms(classroom: str, weekday: int, section: str, cache) -> dict:
             return {'fault_room': classroom, 'fault_building': building,
                     'fault_floor': fault_floor, 'recommendations': []}
 
-        # 解析节次
+        # 解析节次并展开（如 "5-6节" → [5, 6]，与空教室查询逻辑一致）
         section_num = _parse_section_number(section)
+        expanded_sections = [section_num]
+        if section_num % 2 == 1:
+            expanded_sections.append(section_num + 1)
+
+        # 模糊匹配楼栋（与空教室查询接口一致的兜底逻辑）
+        matched_building = None
+        available_buildings = query_system.get_buildings()
+        if building in available_buildings:
+            matched_building = building
+        else:
+            for b in available_buildings:
+                if building in b or b in building:
+                    matched_building = b
+                    break
 
         condition = QueryCondition(
             weekday=weekday,
-            sections=[section_num],
-            building=building,  # 只查同楼栋
+            sections=sorted(expanded_sections),
+            building=matched_building,  # 只查同楼栋
             classroom_type=ClassroomType.ALL,
             exclude_special=True
         )
@@ -867,7 +932,7 @@ def get_dashboard_stats(range_type: str = 'semester') -> dict:
                 pass
 
     # 最新报修动态（取最新12条，不受时间范围限制）
-    latest = [r.to_dict() for r in Repair.select().order_by(Repair.report_time.desc()).limit(12)]
+    latest = [r.to_dict_light() for r in Repair.select().order_by(Repair.report_time.desc()).limit(12)]
 
     return {
         'range_type': range_type,
@@ -892,9 +957,11 @@ def get_dashboard_stats(range_type: str = 'semester') -> dict:
 
 def get_building_drill(building: str, range_type: str = 'semester') -> dict:
     """楼栋下钻统计"""
-    records = [r.to_dict() for r in Repair.select()]
-    filtered = [r for r in records if building in r.get('classroom', '')]
-    ranged = filter_by_range(filtered, range_type)
+    ranged = _to_light_dicts(
+        Repair.select().where(
+            Repair.classroom.contains(building) & _sql_date_filter(range_type)
+        )
+    )
 
     total = len(ranged)
     pending = len([r for r in ranged if r.get('status') in ('未处理', '处理中')])
@@ -942,9 +1009,11 @@ def get_building_drill(building: str, range_type: str = 'semester') -> dict:
 
 def get_college_drill(college: str, range_type: str = 'semester') -> dict:
     """学院下钻统计"""
-    records = [r.to_dict() for r in Repair.select()]
-    filtered = [r for r in records if r.get('reporter_college', '').strip() == college]
-    ranged = filter_by_range(filtered, range_type)
+    ranged = _to_light_dicts(
+        Repair.select().where(
+            (Repair.reporter_college == college) & _sql_date_filter(range_type)
+        )
+    )
 
     total = len(ranged)
     pending = len([r for r in ranged if r.get('status') in ('未处理', '处理中')])
@@ -986,9 +1055,11 @@ def get_college_drill(college: str, range_type: str = 'semester') -> dict:
 
 def get_handler_drill(handler: str, range_type: str = 'semester') -> dict:
     """处理人下钻统计"""
-    records = [r.to_dict() for r in Repair.select()]
-    filtered = [r for r in records if r.get('handler_name', '').strip() == handler]
-    ranged = filter_by_range(filtered, range_type)
+    ranged = _to_light_dicts(
+        Repair.select().where(
+            (Repair.handler_name == handler) & _sql_date_filter(range_type)
+        )
+    )
 
     total = len(ranged)
     pending = len([r for r in ranged if r.get('status') in ('未处理', '处理中')])
@@ -996,9 +1067,10 @@ def get_handler_drill(handler: str, range_type: str = 'semester') -> dict:
     rate = round(resolved / total * 100, 1) if total > 0 else 0
     avg_days = avg_process_days(ranged)
 
-    # 系统平均处理天数（用于对比）
-    all_resolved = [r for r in records if r.get('status') in ('已处理', '已解决')]
-    sys_avg = avg_process_days(all_resolved)
+    # 系统平均处理天数（用于对比，单独查询）
+    sys_avg = avg_process_days(_to_light_dicts(
+        Repair.select().where(Repair.status.in_(['已处理', '已解决']))
+    ))
 
     # 故障类型
     fault_types = count_dict(ranged, 'fault_type')
@@ -1031,12 +1103,15 @@ def get_handler_drill(handler: str, range_type: str = 'semester') -> dict:
 
 def get_fault_type_drill(fault_type: str, range_type: str = 'semester') -> dict:
     """故障类型下钻统计"""
-    records = [r.to_dict() for r in Repair.select()]
-    filtered = [r for r in records if r.get('fault_type', '') == fault_type]
-    ranged = filter_by_range(filtered, range_type)
+    date_cond = _sql_date_filter(range_type)
+    ranged = _to_light_dicts(
+        Repair.select().where(
+            (Repair.fault_type == fault_type) & date_cond
+        )
+    )
 
     total = len(ranged)
-    all_total = len(filter_by_range(records, range_type))
+    all_total = Repair.select().where(date_cond).count()
     ratio = round(total / all_total * 100, 1) if all_total > 0 else 0
 
     # 涉及楼栋数和教室数
@@ -1083,28 +1158,30 @@ def get_fault_type_drill(fault_type: str, range_type: str = 'semester') -> dict:
 
 def get_repair_detail(repair_id: int) -> dict:
     """单条报修详情（含同教室历史）"""
-    records = [r.to_dict() for r in Repair.select()]
-    target = None
-    for r in records:
-        if r.get('id') == repair_id:
-            target = r
-            break
-
-    if not target:
+    try:
+        target_obj = Repair.get_by_id(repair_id)
+    except Repair.DoesNotExist:
         return {'error': '记录不存在'}
 
-    # 同教室历史
+    target = target_obj.to_dict()  # 含修改日志
     classroom = target.get('classroom', '')
-    same_room = [r for r in records if r.get('classroom', '') == classroom and r.get('id') != repair_id]
-    same_room.sort(key=lambda x: x.get('report_time', ''), reverse=True)
 
-    # 该教室故障类型分布（历史所有记录）
-    room_all = [r for r in records if r.get('classroom', '') == classroom]
+    # 同教室历史（轻量字典，无修改日志）
+    same_room = _to_light_dicts(
+        Repair.select().where(
+            (Repair.classroom == classroom) & (Repair.id != repair_id)
+        ).order_by(Repair.report_time.desc()).limit(10)
+    )
+
+    # 该教室故障类型分布
+    room_all = _to_light_dicts(
+        Repair.select().where(Repair.classroom == classroom)
+    )
     room_fault_types = count_dict(room_all, 'fault_type')
 
     return {
         'repair': target,
-        'same_room_history': same_room[:10],
+        'same_room_history': same_room,
         'classroom': classroom,
         'room_fault_types': room_fault_types,
     }
@@ -1112,10 +1189,11 @@ def get_repair_detail(repair_id: int) -> dict:
 
 def get_pending_list(range_type: str = 'semester') -> dict:
     """获取所有待处理工单"""
-    records = [r.to_dict() for r in Repair.select()]
-    pending = [r for r in records if r.get('status') in ('未处理', '处理中')]
-    pending = filter_by_range(pending, range_type)
-    pending.sort(key=lambda x: x.get('report_time', ''), reverse=True)
+    pending = _to_light_dicts(
+        Repair.select().where(
+            Repair.status.in_(['未处理', '处理中']) & _sql_date_filter(range_type)
+        ).order_by(Repair.report_time.desc())
+    )
 
     # 按状态分组
     unhandled = [r for r in pending if r.get('status') == '未处理']
@@ -1144,15 +1222,21 @@ def get_pending_list(range_type: str = 'semester') -> dict:
 
 def get_classroom_drill(classroom: str, range_type: str = 'semester') -> dict:
     """教室下钻统计"""
-    records = [r.to_dict() for r in Repair.select()]
-    filtered = [r for r in records if r.get('classroom', '') == classroom]
-    ranged = filter_by_range(filtered, range_type)
+    date_cond = _sql_date_filter(range_type)
+    ranged = _to_light_dicts(
+        Repair.select().where(
+            (Repair.classroom == classroom) & date_cond
+        )
+    )
 
     total = len(ranged)
     if total == 0:
         # 尝试模糊匹配
-        filtered = [r for r in records if classroom in r.get('classroom', '')]
-        ranged = filter_by_range(filtered, range_type)
+        ranged = _to_light_dicts(
+            Repair.select().where(
+                Repair.classroom.contains(classroom) & date_cond
+            )
+        )
         total = len(ranged)
 
     pending = len([r for r in ranged if r.get('status') in ('未处理', '处理中')])
@@ -1198,45 +1282,49 @@ def get_classroom_drill(classroom: str, range_type: str = 'semester') -> dict:
 
 def get_repair_stats() -> dict:
     """获取报修统计数据"""
-    records = [r.to_dict() for r in Repair.select()]
+    from peewee import fn, Case
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
 
-    # 今日报修数
-    today_count = len([r for r in records if r.get('report_time', '').startswith(today)])
+    # 核心指标（单条 SQL 聚合）
+    stats = Repair.select(
+        fn.COUNT(Repair.id).alias('total'),
+        fn.SUM(Case(None, ((Repair.report_time.startswith(today), 1),), 0)).alias('today'),
+        fn.SUM(Case(None, ((Repair.status.in_(['未处理', '处理中']), 1),), 0)).alias('pending'),
+        fn.SUM(Case(None, ((Repair.status.in_(['已处理', '已解决']), 1),), 0)).alias('resolved'),
+    ).dicts().get()
 
-    # 待处理数
-    pending_count = len([r for r in records if r.get('status') in ('未处理', '处理中')])
-
-    # 已处理数
-    resolved_count = len([r for r in records if r.get('status') in ('已处理', '已解决')])
+    total_count = stats['total'] or 0
+    today_count = stats['today'] or 0
+    pending_count = stats['pending'] or 0
+    resolved_count = stats['resolved'] or 0
 
     # 故障类型分布
     fault_types = {}
-    for r in records:
-        ft = r.get('fault_type', '其他')
-        fault_types[ft] = fault_types.get(ft, 0) + 1
+    for r in Repair.select(Repair.fault_type, fn.COUNT(Repair.id).alias('count')).group_by(Repair.fault_type):
+        fault_types[r.fault_type or '其他'] = r.count
 
     # 近7天报修趋势
     trend = {}
     for i in range(7):
         date = (now - timedelta(days=6-i)).strftime('%Y-%m-%d')
-        count = len([r for r in records if r.get('report_time', '').startswith(date)])
-        trend[date] = count
+        trend[date] = Repair.select(fn.COUNT(Repair.id)).where(
+            Repair.report_time.startswith(date)
+        ).scalar() or 0
 
     # 楼栋分布
     building_stats = {}
-    for r in records:
-        room = r.get('classroom', '')
+    for r in Repair.select(Repair.classroom, fn.COUNT(Repair.id).alias('count')).group_by(Repair.classroom):
+        room = r.classroom or ''
         building = re.sub(r'\d+$', '', room).strip()
         if building:
-            building_stats[building] = building_stats.get(building, 0) + 1
+            building_stats[building] = building_stats.get(building, 0) + r.count
 
     return {
         'today_count': today_count,
         'pending_count': pending_count,
         'resolved_count': resolved_count,
-        'total_count': len(records),
+        'total_count': total_count,
         'fault_types': fault_types,
         'trend': trend,
         'building_stats': building_stats,

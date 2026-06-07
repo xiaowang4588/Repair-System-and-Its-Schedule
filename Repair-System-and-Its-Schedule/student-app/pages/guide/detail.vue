@@ -121,11 +121,9 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
+import { getImageUrl as resolveImageUrl } from '../../config/index.js'
 import { getGuideDetail, toggleGuideLike, toggleGuideFavorite,
          getGuideComments, createGuideComment, deleteGuideComment } from '../../api/index.js'
-
-const API_BASE = config.API_BASE
 
 export default {
     data() {
@@ -310,11 +308,7 @@ export default {
             uni.previewImage({ urls, current: urls[index] })
         },
 
-        getImageUrl(img) {
-            if (!img) return ''
-            if (img.startsWith('http')) return img
-            return API_BASE + img
-        },
+        getImageUrl(img) { return resolveImageUrl(img) },
 
         onImageError(e, img) {
             console.error('图片加载失败:', this.getImageUrl(img), e)

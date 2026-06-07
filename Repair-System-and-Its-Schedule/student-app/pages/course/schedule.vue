@@ -133,8 +133,7 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
-const API_BASE = config.API_BASE
+import { request } from '../../api/index.js'
 
 export default {
     data() {
@@ -207,15 +206,20 @@ export default {
         // 加载楼栋列表
         async loadBuildings() {
             try {
-                const res = await this.apiGet('/api/buildings')
-                if (res && res.status === 'ok' && res.data) {
+                const res = await request('/api/buildings')
+                console.log('[BUILDINGS] API 返回:', JSON.stringify(res))
+                if (res && res.status === 'ok' && Array.isArray(res.data) && res.data.length > 0) {
                     this.buildingOptions = [
                         { label: '全部楼栋', value: '' },
                         ...res.data.map(b => ({ label: b, value: b }))
                     ]
+                    console.log('[BUILDINGS] 楼栋列表:', this.buildingOptions)
+                } else {
+                    console.warn('[BUILDINGS] 返回数据为空或格式异常:', res)
                 }
             } catch (e) {
-                console.error('加载楼栋列表失败:', e)
+                console.error('[BUILDINGS] 加载楼栋列表失败:', e)
+                uni.showToast({ title: '加载楼栋列表失败', icon: 'none' })
             }
         },
 
@@ -232,7 +236,7 @@ export default {
             }
             uni.showLoading({ title: '查询中...' })
             try {
-                const res = await this.apiGet('/api/query/weekly', {
+                const res = await request('/api/query/weekly', {
                     keyword: this.keyword.trim(),
                     type: this.queryType
                 })
@@ -301,7 +305,7 @@ export default {
                     exclude_special: true
                 }
                 if (building) params.building = building
-                const res = await this.apiGet('/api/empty-rooms', params)
+                const res = await request('/api/empty-rooms', params)
                 if (res && res.status === 'ok') {
                     this.emptyRooms = res.data || []
                     this.emptyQueried = true
@@ -318,28 +322,6 @@ export default {
             }
         },
 
-        // 通用GET请求
-        apiGet(url, params = {}) {
-            return new Promise((resolve, reject) => {
-                const query = Object.keys(params)
-                    .filter(k => params[k] !== undefined && params[k] !== '')
-                    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
-                    .join('&')
-                const fullUrl = query ? `${API_BASE}${url}?${query}` : `${API_BASE}${url}`
-                uni.request({
-                    url: fullUrl,
-                    method: 'GET',
-                    header: { 'Content-Type': 'application/json' },
-                    success: (res) => {
-                        resolve(res.statusCode === 200 ? res.data : null)
-                    },
-                    fail: (err) => {
-                        console.error('请求失败:', err)
-                        reject(err)
-                    }
-                })
-            })
-        }
     }
 }
 </script>

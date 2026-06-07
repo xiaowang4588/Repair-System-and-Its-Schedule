@@ -248,9 +248,8 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
+import config, { getImageUrl as resolveImageUrl } from '../../config/index.js'
 import { request, post } from '../../api/index.js'
-const API_BASE = config.API_BASE
 
 export default {
     data() {
@@ -524,7 +523,7 @@ export default {
             const header = {}
             if (token) header['Authorization'] = `Bearer ${token}`
             uni.uploadFile({
-                url: API_BASE + '/api/repair/upload-image',
+                url: config.API_BASE + '/api/repair/upload-image',
                 filePath: filePath,
                 name: 'file',
                 header: header,
@@ -555,12 +554,8 @@ export default {
             this.editForm.note_images.splice(index, 1)
         },
 
-        // 获取图片完整URL
-        getImageUrl(img) {
-            if (!img) return ''
-            if (img.startsWith('http')) return img
-            return API_BASE + img
-        },
+        // 获取图片完整URL（委托给共享工具函数）
+        getImageUrl(img) { return resolveImageUrl(img) },
 
         // 保存编辑
         async saveEdit() {

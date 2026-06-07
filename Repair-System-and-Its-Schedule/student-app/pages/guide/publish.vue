@@ -63,10 +63,8 @@
 </template>
 
 <script>
-import config from '../../config/index.js'
+import config, { getImageUrl as resolveImageUrl } from '../../config/index.js'
 import { createGuide, uploadGuideVideo, getGuideAvailableTags } from '../../api/index.js'
-
-const API_BASE = config.API_BASE
 
 export default {
     data() {
@@ -173,7 +171,7 @@ export default {
         uploadImage(filePath) {
             return new Promise((resolve, reject) => {
                 uni.uploadFile({
-                    url: API_BASE + '/api/repair/upload-image',
+                    url: config.API_BASE + '/api/repair/upload-image',
                     filePath: filePath,
                     name: 'file',
                     success: (res) => {
@@ -260,11 +258,7 @@ export default {
             }
         },
 
-        getImageUrl(img) {
-            if (!img) return ''
-            if (img.startsWith('http')) return img
-            return API_BASE + img
-        },
+        getImageUrl(img) { return resolveImageUrl(img) },
 
         formatDuration(seconds) {
             if (!seconds) return ''
